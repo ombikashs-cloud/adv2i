@@ -7,285 +7,6 @@ dotenv.config();
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-// ══════════════════════════════════════════════════════════════
-// HELPERS, NORMALIZERS & TEMPLATES
-// ══════════════════════════════════════════════════════════════
-
-function safeParseJSON(text) {
-    if (!text) throw new Error('Empty response from Gemini');
-    
-    let cleaned = text.trim();
-    
-    // Step 1: Remove markdown fences Gemini adds
-    cleaned = cleaned.replace(/^```json\s*/i, '').replace(/\s*```$/i, '');
-    cleaned = cleaned.replace(/^```\s*/i, '').replace(/\s*```$/i, '');
-    
-    cleaned = cleaned.trim();
-    
-    // Step 2: Try direct parse first
-    try {
-        return JSON.parse(cleaned);
-    } catch (e1) {
-        console.warn('Direct parse failed, attempting recovery...');
-    }
-    
-    // Step 3: Extract JSON object/array using regex
-    try {
-        const jsonMatch = cleaned.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
-        if (jsonMatch) {
-            return JSON.parse(jsonMatch[0]);
-        }
-    } catch (e2) {
-        console.warn('Regex extraction failed, attempting truncation fix...');
-    }
-    
-    // Step 4: Fix truncated JSON array
-    try {
-        const lastComma = cleaned.lastIndexOf('},');
-        if (lastComma > 0) {
-            const truncationFixed = cleaned.substring(0, lastComma + 1) + ']';
-            return JSON.parse(truncationFixed);
-        }
-    } catch (e3) {
-        console.warn('Truncation fix as array failed');
-    }
-
-    // Step 5: Fix truncated JSON object
-    try {
-        const lastComma = cleaned.lastIndexOf('},');
-        if (lastComma > 0) {
-            const truncationFixed = cleaned.substring(0, lastComma + 1) + ']}';
-            return JSON.parse(truncationFixed);
-        }
-    } catch (e4) {
-        console.warn('Truncation fix as object failed');
-    }
-    
-    // Step 6: Log and throw
-    console.error('All parse attempts failed. Raw response snippet:', text.substring(0, 500));
-    throw new Error(`JSON parse failed after all recovery attempts. Response preview: ${text.substring(0, 150)}`);
-}
-
-const CHAPTER_NORMALIZER = {
-    // Physics
-    'motion in a straight line': 'Kinematics',
-    'motion in a plane': 'Kinematics',
-    'kinematics': 'Kinematics',
-    'laws of motion': 'Laws of Motion',
-    'newtons laws of motion': 'Laws of Motion',
-    'nlm': 'Laws of Motion',
-    'work power energy': 'Work, Energy and Power',
-    'work energy and power': 'Work, Energy and Power',
-    'work energy & power': 'Work, Energy and Power',
-    'wpe': 'Work, Energy and Power',
-    'system of particles and rotational motion': 'Rotational Motion',
-    'rotational motion': 'Rotational Motion',
-    'rotation': 'Rotational Motion',
-    'electrostatic': 'Electrostatics',
-    'electrostatics': 'Electrostatics',
-    'electric charges and fields': 'Electrostatics',
-    'electrostatic potential and capacitance': 'Electrostatics',
-    'current electricity': 'Current Electricity',
-    'electromagnetic induction': 'Electromagnetic Induction',
-    'emi': 'Electromagnetic Induction',
-    'alternating current': 'Alternating Current (AC) Circuits',
-    'alternating currents': 'Alternating Current (AC) Circuits',
-    'ac': 'Alternating Current (AC) Circuits',
-    'ac circuits': 'Alternating Current (AC) Circuits',
-    'ray optics': 'Ray Optics',
-    'ray optics and optical instruments': 'Ray Optics',
-    'wave optics': 'Wave Optics',
-    'modern physics': 'Modern Physics',
-    'semiconductor': 'Electronics',
-    'semiconductors': 'Electronics',
-    'electronics': 'Electronics',
-
-    // Chemistry
-    'mole concept': 'Mole Concept',
-    'atomic structure': 'Atomic Structure',
-    'structure of atom': 'Atomic Structure',
-    'chemical bonding': 'Chemical Bonding',
-    'chemical bonding and molecular structure': 'Chemical Bonding',
-    'chemical kinetics': 'Chemical Kinetics',
-    'equilibrium': 'Equilibrium',
-    'electrochemistry': 'Electrochemistry',
-    'coordination compounds': 'Coordination Compounds',
-    'coordination chemistry': 'Coordination Compounds',
-    'p-block elements': 'p-Block Elements',
-    'd-block elements': 'd-Block Elements',
-    'organic chemistry': 'Organic Chemistry',
-    'aldehydes ketones and carboxylic acids': 'Aldehyde Ketone',
-    'aldehydes and ketones': 'Aldehyde Ketone',
-    'aldehyde ketone': 'Aldehyde Ketone',
-    'alcohols phenols and ethers': 'Alcohol Phenol Ether',
-    'alcohol phenol ether': 'Alcohol Phenol Ether',
-    'solutions': 'Solutions',
-
-    // Biology
-    'biological classification': 'Biological Classification',
-    'the living world': 'The Living World',
-    'cell: the unit of life': 'Cell: The Unit of Life',
-    'cell - the unit of life': 'Cell: The Unit of Life',
-    'cell the unit of life': 'Cell: The Unit of Life',
-    'cell unit of life': 'Cell: The Unit of Life',
-    'cell cycle and cell division': 'Cell: The Unit of Life',
-    'cell cycle & cell division': 'Cell: The Unit of Life',
-    'cell': 'Cell: The Unit of Life',
-    'biomolecules': 'Biomolecules',
-    'biomolecule': 'Biomolecules',
-    'digestion and absorption': 'Digestion',
-    'digestion': 'Digestion',
-    'body fluids and circulation': 'Body Fluids and Circulation',
-    'circulation': 'Body Fluids and Circulation',
-    'body fluids': 'Body Fluids and Circulation',
-    'excretory products and their elimination': 'Excretory Products',
-    'excretion': 'Excretory Products',
-    'excretory products': 'Excretory Products',
-    'neural control and coordination': 'Neural Control',
-    'neural control': 'Neural Control',
-    'genetics': 'Genetics and Evolution',
-    'genetics and evolution': 'Genetics and Evolution',
-    'principles of inheritance and variation': 'Genetics and Evolution',
-    'molecular basis of inheritance': 'Genetics and Evolution',
-    'evolution': 'Genetics and Evolution',
-    'human physiology': 'Human Physiology',
-    'plant physiology': 'Plant Physiology',
-    'photosynthesis in higher plants': 'Plant Physiology',
-    'respiration in plants': 'Plant Physiology',
-    'plant growth and development': 'Plant Physiology',
-    'reproduction': 'Reproduction',
-    'sexual reproduction in flowering plants': 'Reproduction',
-    'human reproduction': 'Reproduction',
-    'reproductive health': 'Reproduction',
-    'ecology': 'Ecology',
-    'organisms and populations': 'Ecology',
-    'ecosystem': 'Ecology',
-    'biodiversity and conservation': 'Ecology',
-    'biotechnology': 'Biotechnology',
-    'biotechnology: principles and processes': 'Biotechnology',
-    'biotechnology and its applications': 'Biotechnology'
-};
-
-function normalizeChapter(raw) {
-    if (!raw) return 'General';
-    const key = raw.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
-    if (CHAPTER_NORMALIZER[key]) {
-        return CHAPTER_NORMALIZER[key];
-    }
-    for (const [variant, canonical] of Object.entries(CHAPTER_NORMALIZER)) {
-        if (key.includes(variant) || variant.includes(key)) {
-            return canonical;
-        }
-    }
-    return raw
-        .split(' ')
-        .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-        .join(' ');
-}
-
-const friendlyTemplates = {
-    Foundation: {
-        tonight: (chapter, subject) => 
-            `Aaj raat sirf ${chapter} ke basic concepts padho. NCERT ke diagrams ek baar pencil se trace karo — haath se likhoge toh yaad rahega. 30 minute kaafi hai.`,
-        day2: (chapter, book) => 
-            `Kal subah ${book} se ${chapter} ke solved examples dekho. Khud solve karne ki koshish karo pehle, phir answer dekho. Galti hua toh woh step underline karo.`,
-        day3: (weakTopics) => {
-            const topicsStr = (weakTopics && weakTopics.length > 0) ? weakTopics.join(' aur ') : 'weak concepts';
-            return `Aaj ${topicsStr} pe focus karo. Inhi concepts se question aaya tha. Ek page notes banao apne words mein.`;
-        },
-        day4_5: (subject) => 
-            `${subject} ke last 3 saal ke PYQ dekho — sirf inhi chapters se. Pattern samjho, ratta mat maaro.`,
-        day6_7: (chapter) => 
-            `Week ke aakhir mein ek mini revision karo — ${chapter} ke 10 questions time karke solve karo. Score karo khud. Improvement dikhega.`
-    },
-    Application: {
-        tonight: (chapter, subject) => 
-            `Aaj raat ${chapter} ke jo questions galat hue, unhe dobara karo bina copy dekhe. Sirf woh — 20-25 minute.`,
-        day2: (chapter, book) => 
-            `${book} se ${chapter} ke medium difficulty questions karo kal. Easy wale skip karo — tumhara level usse upar hai.`,
-        day3: (weakTopics) => {
-            const topicsStr = (weakTopics && weakTopics.length > 0) ? weakTopics.join(' aur ') : 'weak concepts';
-            return `${topicsStr} pe aaj thoda zyada time do — yahi tumhara weakest sub-topic hai is chapter mein.`;
-        },
-        day4_5: (subject) => 
-            `${subject} ke mixed practice set karo — multiple chapters ek saath. Real exam jaisa feel aayega.`,
-        day6_7: (chapter) => 
-            `${chapter} ka ek full mock section karo — timed. Phir khud analyse karo kahan time waste hua.`
-    },
-    Refinement: {
-        tonight: (chapter, subject) => 
-            `Tumhara ${chapter} strong hai — aaj raat advanced problems karo. Tricky wale, jahan concept twist hota hai.`,
-        day2: (chapter, book) => 
-            `${book} ke highest difficulty questions lo ${chapter} se. Inhe solve karna tumhare liye challenge hona chahiye.`,
-        day3: (weakTopics) => {
-            const topicsStr = (weakTopics && weakTopics.length > 0) ? weakTopics.join(' aur ') : '';
-            return topicsStr 
-                ? `Ek chhota sa gap hai — ${topicsStr}. Sirf ise polish karo aaj.`
-                : `Aaj cross-chapter questions karo — yahi NEET mein aata.`;
-        },
-        day4_5: (subject) => 
-            `${subject} mein tumhara score already achha hai. Aaj speed pe kaam karo — same questions, kam time.`,
-        day6_7: (chapter) => 
-            `${chapter} done. Ab doosre weak subjects pe shift karo — inhe carry forward mat karo.`
-    }
-};
-
-function generateMode1ActionPlan(level, weakestChapter, weakTopics, subject, book) {
-    const template = friendlyTemplates[level] || friendlyTemplates.Application;
-    return {
-        tonightHomework: {
-            chapter: weakestChapter,
-            subject: subject,
-            taskType: "Concept Re-read",
-            resource: book,
-            taskInHinglish: template.tonight(weakestChapter, subject),
-            whyJustification: "Initial base building.",
-            durationMinutes: 30,
-            selfCheck: "Close book, write 5-line summary of tonight's learning from memory.",
-            mentorNote: "Base strong karo pehle!"
-        },
-        day2Task: {
-            chapter: weakestChapter,
-            subject: subject,
-            taskType: "NCERT Active Recall",
-            resource: book,
-            taskInHinglish: template.day2(weakestChapter, book),
-            whyJustification: "Building application on base concepts.",
-            durationMinutes: 45,
-            selfCheck: "Explain the concept out loud as if teaching a friend.",
-            mentorNote: "Solved examples are stepping stones."
-        },
-        day3_4Task: {
-            chapter: weakestChapter,
-            subject: subject,
-            taskType: "Spaced Repetition",
-            resource: book,
-            taskInHinglish: template.day3(weakTopics),
-            whyJustification: "Reinforcing weak sub-topics.",
-            durationMinutes: 45,
-            selfCheck: "Write the key formulas/diagrams without looking.",
-            mentorNote: "Notes should be concise!"
-        },
-        day5MiniTest: {
-            instructions: template.day4_5(subject),
-            passCriteria: "All 10 questions correct under time limit",
-            durationMinutes: 45
-        },
-        day6_7Consolidation: {
-            chapter: weakestChapter,
-            subject: subject,
-            taskType: "Revision",
-            resource: book,
-            taskInHinglish: template.day6_7(weakestChapter),
-            whyJustification: "Consolidating learning with a timed test.",
-            durationMinutes: 60,
-            selfCheck: "Review mistake notebook.",
-            mentorNote: "Mini revision is done. Excellent effort!"
-        }
-    };
-}
-
-
 class RequestQueue {
     constructor(delayMs = 2000) {
         this.queue = [];
@@ -636,88 +357,82 @@ app.post('/api/extract-questions', async (req, res) => {
             return res.status(500).json({ error: 'GEMINI_API_KEY is not configured on the server.' });
         }
 
-        const subjects = [
-            { name: 'Physics', detail: 'Physics (typically questions 1 to 50)' },
-            { name: 'Chemistry', detail: 'Chemistry (typically questions 51 to 100)' },
-            { name: 'Biology', detail: 'Biology (Botany and Zoology) (typically questions 101 to 200)' }
-        ];
+        let promptText = `You are a NEET UG exam parser. Your job is to extract all questions from this exam paper (PDF or image).
 
-        let combinedResults = [];
-        
-        for (const sub of subjects) {
-            let promptText = `You are a NEET UG exam parser. Your job is to extract ONLY the questions for the subject: ${sub.name} from this exam paper (PDF or image).
-            
-            Focus on questions that belong to ${sub.detail}.
-            
-            For each question, output:
-            1. "qno": The question number (e.g., "1", "2").
-            2. "text": The text of the question (the question stem).
-            3. "subject": One of "Physics", "Chemistry", "Botany", "Zoology", or "Mathematics" — determined from the section header the question appears under (e.g. Botany/Zoology), or from the question's content if no header is visible. Use Botany or Zoology instead of Biology.
-            4. "chapter": The primary chapter name within that subject (e.g., Digestion, Kinematics, Cell Biology).
-            5. "subConcept": The specific sub-topic or concept within that chapter.
-            6. "errorType": Classify the question as either "Memory" (rote fact), "Conceptual" (understanding principles), or "Application" (calculating/applying formulas).
-            7. "ans": The correct answer option: A, B, C, or D. If the document has an answer key (e.g., at the end of the document), use it. Otherwise, solve the question to determine the correct answer.
-            
-            Return the result STRICTLY as a JSON array of objects. Do not include markdown formatting or any other text.
-            Format: [{"qno": "1", "text": "What is the unit of force?", "subject": "Physics", "chapter": "Laws of Motion", "subConcept": "Newton's Laws", "errorType": "Memory", "ans": "B"}]
-            
-            If no questions for ${sub.name} are found, return an empty array [].`;
+IMPORTANT: NEET papers typically contain FOUR sections in this order: Physics, Chemistry, Botany, Zoology (Botany + Zoology together = Biology). Section headers (e.g. "PHYSICS", "CHEMISTRY", "BOTANY", "ZOOLOGY") usually appear in the document — use them to determine which subject each question belongs to. If a question falls under a Botany or Zoology header, set "subject" to "Botany" or "Zoology" respectively (not the generic "Biology"). Never default to Biology for a question that is clearly Physics, Chemistry, or Math based on its content or section header.
 
-            const requestBody = {
-                contents: [{ parts: [{ text: promptText }] }],
-                generationConfig: {
-                    temperature: 0.1,
-                    maxOutputTokens: 8192,
-                    responseMimeType: "application/json"
-                }
-            };
+For each question, output:
+1. "qno": The question number (e.g., "1", "2").
+2. "text": The text of the question (the question stem).
+3. "subject": One of "Physics", "Chemistry", "Botany", "Zoology", or "Mathematics" — determined from the section header the question appears under, or from the question's content if no header is visible. This field is REQUIRED for every question and must never be left blank or guessed as a default.
+4. "chapter": The primary chapter name within that subject (e.g., Digestion, Kinematics, Cell Biology).
+5. "subConcept": The specific sub-topic or concept within that chapter.
+6. "errorType": Classify the question as either "Memory" (rote fact), "Conceptual" (understanding principles), or "Application" (calculating/applying formulas).
+7. "ans": The correct answer option: A, B, C, or D. If the document has an answer key (e.g., at the end of the document), use it. Otherwise, solve the question to determine the correct answer.
 
-            if (fileData && mimeType) {
-                requestBody.contents[0].parts.push({
-                    inlineData: {
-                        mimeType: mimeType,
-                        data: fileData
-                    }
-                });
-            } else if (textContent) {
-                requestBody.contents[0].parts.push({ text: `\n\nDocument Content:\n${textContent}` });
+Return the result STRICTLY as a JSON array of objects. Do not include markdown formatting or any other text.
+Format: [{"qno": "1", "text": "What is the unit of force?", "subject": "Physics", "chapter": "Laws of Motion", "subConcept": "Newton's Laws", "errorType": "Memory", "ans": "B"}]`;
+
+        const requestBody = {
+            contents: [{ parts: [{ text: promptText }] }],
+            generationConfig: {
+                temperature: 0.2,
+                maxOutputTokens: 16384,          // ← FIX: missing token limit caused truncation
+                responseMimeType: "application/json"
             }
+        };
 
-            const data = await geminiQueue.add(async () => {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(requestBody)
-                });
-                return response.json();
+        if (fileData && mimeType) {
+            requestBody.contents[0].parts.push({
+                inlineData: { mimeType: mimeType, data: fileData }
             });
+        } else if (textContent) {
+            requestBody.contents[0].parts.push({ text: `\n\nDocument Content:\n${textContent}` });
+        } else {
+            return res.status(400).json({ error: 'No file data or text content provided.' });
+        }
 
-            if (data.error) {
-                console.error(`Gemini API Error for ${sub.name}:`, data.error);
-                const isRateLimit = data.error.code === 429 || String(data.error.message).includes('429') || String(data.error.message).toLowerCase().includes('exhausted');
-                const statusCode = isRateLimit ? 429 : 500;
-                return res.status(statusCode).json({ error: `${sub.name} extraction failed: ${data.error.message || 'AI provider error.'}` });
-            }
+        const data = await geminiQueue.add(async () => {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            });
+            return response.json();
+        });
 
-            const rawText = data.candidates[0].content.parts[0].text;
+        if (data.error) {
+            console.error("Gemini API Error:", data.error);
+            const isRateLimit = data.error.code === 429 || String(data.error.message).includes('429') || String(data.error.message).toLowerCase().includes('exhausted');
+            const statusCode = isRateLimit ? 429 : 500;
+            return res.status(statusCode).json({ error: data.error.message || 'AI provider error.' });
+        }
+
+        const rawText = data.candidates[0].content.parts[0].text;
+        console.log(`📋 extract-questions: response length=${rawText.length}`);
+
+        // Safe JSON parse — handles markdown fences and truncated responses
+        let parsedResults;
+        try {
+            parsedResults = JSON.parse(rawText);
+        } catch (e1) {
+            const cleaned = rawText.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
             try {
-                const parsed = safeParseJSON(rawText);
-                if (Array.isArray(parsed)) {
-                    parsed.forEach(item => {
-                        item.chapter = normalizeChapter(item.chapter);
-                        if (item.subject === 'Biology') {
-                            item.subject = sub.name === 'Biology' ? 'Botany' : sub.name;
-                        }
-                    });
-                    combinedResults = combinedResults.concat(parsed);
+                parsedResults = JSON.parse(cleaned);
+            } catch (e2) {
+                const lastBrace = cleaned.lastIndexOf('}');
+                try {
+                    parsedResults = JSON.parse(cleaned.substring(0, lastBrace + 1) + ']');
+                    console.warn('⚠️ Truncation recovery used — some questions may be missing');
+                } catch (e3) {
+                    console.error('All parse attempts failed. Preview:', rawText.substring(0, 300));
+                    return res.status(500).json({ error: 'Failed to parse AI response.' });
                 }
-            } catch (parseError) {
-                console.error(`Failed to parse JSON for ${sub.name}:`, rawText);
-                // Continue to next subject chunk
             }
         }
 
-        return res.json({ results: combinedResults });
+        console.log(`✅ extract-questions: ${Array.isArray(parsedResults) ? parsedResults.length : '?'} questions extracted`);
+        return res.json({ results: parsedResults });
 
     } catch (error) {
         console.error("Server Error:", error);
@@ -1101,6 +816,117 @@ Content revision is secondary. Fix the strategy gap first.\n`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// MODE 1 — FRIENDLY TEACHER VOICE (NO AI, ZERO COST)
+// Short, clean, warm Hinglish — no justifications, no deep forensics
+// ═══════════════════════════════════════════════════════════════════════════
+const MODE1_TEMPLATES = {
+    Foundation: {
+        tonight:  (ch, subj) => `Aaj raat sirf ${ch} ke basic concepts padho. NCERT ke diagrams ek baar pencil se trace karo — haath se likhoge toh yaad rahega. 30 minute kaafi hai.`,
+        day2:     (ch, book) => `Kal subah ${book} se ${ch} ke solved examples dekho. Khud solve karne ki koshish karo pehle, phir answer dekho. Galti hua toh woh step underline karo.`,
+        day3:     (topics)  => `Aaj ${(topics.slice(0,2)).join(' aur ')} pe focus karo. Inhi concepts se question aaya tha. Ek page notes banao apne words mein.`,
+        day4_5:   (subj)    => `${subj} ke last 3 saal ke PYQ dekho — sirf inhi chapters se. Pattern samjho, ratta mat maaro.`,
+        day6_7:   (ch)      => `Week ke aakhir mein ek mini revision karo — ${ch} ke 10 questions time karke solve karo. Improvement dikhega.`,
+        selfCheck:(ch)      => `Book band karo. Ek blank page pe ${ch} ke 5 key points likho bina dekhte.`,
+        mentor:   (ch)      => `Foundation strong toh NEET strong — ek din ek chapter.`
+    },
+    Application: {
+        tonight:  (ch, subj) => `Aaj raat ${ch} ke jo questions galat hue, unhe dobara karo bina copy dekhe. 20-25 minute.`,
+        day2:     (ch, book) => `${book} se ${ch} ke medium difficulty questions karo kal. Easy wale skip karo — tumhara level usse upar hai.`,
+        day3:     (topics)  => `${topics[0] || ch} pe aaj thoda zyada time do — yahi tumhara weakest sub-topic hai is chapter mein.`,
+        day4_5:   (subj)    => `${subj} ke mixed practice set karo — multiple chapters ek saath. Real exam jaisa feel aayega.`,
+        day6_7:   (ch)      => `${ch} ka ek full mock section karo — timed. Phir khud analyse karo kahan time waste hua.`,
+        selfCheck:(ch)      => `${ch} ka ek unseen problem bina formula sheet ke solve karo — 5 minute timer lagao.`,
+        mentor:   (ch)      => `Tu jaanta hai ye — ab sirf practise ka game hai.`
+    },
+    Refinement: {
+        tonight:  (ch, subj) => `Tumhara ${ch} strong hai — aaj raat advanced problems karo. Tricky wale, jahan concept twist hota hai.`,
+        day2:     (ch, book) => `${book} ke highest difficulty questions lo ${ch} se. Inhe solve karna tumhare liye challenge hona chahiye.`,
+        day3:     (topics)  => topics.length > 0 ? `Ek chhota sa gap hai — ${topics[0]}. Sirf ise polish karo aaj.` : `Aaj cross-chapter questions karo — yahi NEET mein aata hai.`,
+        day4_5:   (subj)    => `${subj} mein tumhara score achha hai. Aaj speed pe kaam karo — same questions, kam time.`,
+        day6_7:   (ch)      => `${ch} done. Ab doosre weak subjects pe shift karo — inhe carry forward mat karo.`,
+        selfCheck:(ch)      => `${ch} ke 3 hardest questions bina kisi help ke 10 minute mein solve karo.`,
+        mentor:   (ch)      => `Tera knowledge problem nahi hai — habits aur speed fix karne hain.`
+    }
+};
+
+function generateMode1Report(studentData, testMetadata, studentLevel, levelRationale, weakestChapter, weakSubConcepts, errBreakdown) {
+    const name      = studentData.name || 'beta';
+    const perf      = studentData.performance || {};
+    const incorrect = testMetadata.incorrectQuestions || [];
+
+    // Get top subject and book for the weakest chapter
+    const topSubject = incorrect[0]?.subject || 'Biology';
+    const bookGuide  = getBookGuidance(topSubject, weakestChapter, null);
+    const bookRef    = topSubject.toLowerCase() === 'physics'
+        ? 'HC Verma'
+        : topSubject.toLowerCase() === 'chemistry'
+            ? bookGuide.primaryBook.split('—')[0].trim()
+            : 'NCERT';
+
+    const tmpl = MODE1_TEMPLATES[studentLevel] || MODE1_TEMPLATES['Application'];
+    const topics = weakSubConcepts.slice(0, 3);
+
+    const actionPlan = {
+        tonightHomework: {
+            chapter: weakestChapter, subject: topSubject,
+            taskType: studentLevel === 'Foundation' ? 'NCERT Active Recall' : studentLevel === 'Refinement' ? 'Speed Test' : 'Numerical Drill',
+            resource: bookRef,
+            taskInHinglish: tmpl.tonight(weakestChapter, topSubject),
+            durationMinutes: studentLevel === 'Foundation' ? 30 : 25,
+            selfCheck: tmpl.selfCheck(weakestChapter),
+            mentorNote: tmpl.mentor(weakestChapter)
+        },
+        day2Task: {
+            chapter: weakestChapter, subject: topSubject,
+            taskType: 'Concept Re-read',
+            resource: bookRef,
+            taskInHinglish: tmpl.day2(weakestChapter, bookRef),
+            durationMinutes: 30,
+            selfCheck: `${weakestChapter} ke 3 key points bina book ke likhkar dekho.`,
+            mentorNote: `Consistency hi NEET ka formula hai.`
+        },
+        day3_4Task: {
+            chapter: topics[0] || weakestChapter, subject: topSubject,
+            taskType: 'Trap-Spotting',
+            resource: bookRef,
+            taskInHinglish: tmpl.day3(topics),
+            durationMinutes: 35,
+            selfCheck: `Jo sub-topic galat tha, usse ek example explain karo — bina notes ke.`,
+            mentorNote: `Sub-concept fix ho gaya toh chapter fix ho gaya.`
+        },
+        day5MiniTest: {
+            instructions: `Aaj woh exact questions dobara karo jo is test mein galat hue the — ${incorrect.slice(0,5).map(q=>`Q${q.qno}`).join(', ')}. Timer lagao, exactly 1 minute per question.`,
+            passCriteria: `${Math.ceil(Math.min(incorrect.length, 5) * 0.7)} out of ${Math.min(incorrect.length, 5)} correct = improvement confirmed.`,
+            durationMinutes: Math.min(incorrect.length, 5) * 1 + 5
+        },
+        day6_7Consolidation: {
+            chapter: weakestChapter, subject: topSubject,
+            taskType: 'Speed Test',
+            resource: 'Previous Year NEET Questions',
+            taskInHinglish: tmpl.day4_5(topSubject),
+            durationMinutes: 40,
+            selfCheck: `Last 3 years ke ${weakestChapter} questions time karke solve karo.`,
+            mentorNote: tmpl.mentor(weakestChapter)
+        }
+    };
+
+    return {
+        studentLevel,
+        levelRationale,
+        academicSummary: `${name}, is test mein ${weakestChapter} pe kuch gaps aaye hain — fixable hai. Is hafte ek cheez pe focus karo aur improvement guaranteed hai.`,
+        errorAnalysis: {
+            conceptualCount:  errBreakdown.conceptual  || 0,
+            applicationCount: errBreakdown.application || 0,
+            behavioralCount:  errBreakdown.behavioral  || 0,
+            forensicDeepDive: `Weakest area: ${weakestChapter}. Sub-topics to focus: ${topics.join(', ') || 'basics'}. ${incorrect.length} questions need revision.`
+        },
+        actionPlan,
+        parentCheckpoint: `Aaj raat ${name} se poochiye: "${weakestChapter} ke baare mein aaj kya padha? Ek cheez batao."`,
+        parentBriefing:   `${name} ko ${weakestChapter} mein thodi practice aur chahiye. Hum ne 7-din ka simple plan diya hai. Please ensure they study 30-40 mins daily this week.`
+    };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // API ENDPOINT — GENERATE AI PRESCRIPTION
 // ═══════════════════════════════════════════════════════════════════════════
 app.post('/api/generate-prescription', async (req, res) => {
@@ -1161,43 +987,26 @@ app.post('/api/generate-prescription', async (req, res) => {
             levelToneInstructions = 'Balanced: fix top conceptual gap first, then reinforce with targeted drills.';
         }
 
+        // ── 1b. WEAKEST CHAPTER (needed for both Mode 1 and Mode 2/3) ────────
+        const priorityDataEarly = getTopPriorityChapters(incorrectQuestions, 4);
+        const weakestChapter    = priorityDataEarly.priority[0]?.chapter || 'the weakest chapter';
+        const weakSubConcepts   = priorityDataEarly.priority[0]?.subConcepts || [];
+
+        // ── MODE 1: INSTANT REPORT — no AI, zero cost ─────────────────────
+        const prescriptionMode = (studentData.prescriptionMode || 'mode2').toLowerCase();
+        if (prescriptionMode === 'mode1') {
+            const mode1Report = generateMode1Report(
+                studentData, testMetadata,
+                studentLevel, levelRationale,
+                weakestChapter, weakSubConcepts, errBreakdown
+            );
+            console.log(`✅ Mode 1 report generated for ${studentData.name} — no API call used`);
+            return res.json(mode1Report);
+        }
+
         // ── 2. PRIORITY CHAPTER RANKING with book guidance injected ─────────
         const priorityData = getTopPriorityChapters(incorrectQuestions, 4);
 
-        const prescriptionMode = studentData.prescriptionMode || 'mode1';
-        const studentName = studentData.name || 'beta';
-
-        // ── MODE 1 Bypasses Gemini API ──────────────────────────────────────
-        if (prescriptionMode === 'mode1') {
-            const weakestChapter = priorityData.priority[0]?.chapter || 'General';
-            const weakestSubject = priorityData.priority[0]?.subject || 'Biology';
-            const bg = getBookGuidance(weakestSubject, weakestChapter, null);
-            const book = bg.primaryBook || 'NCERT';
-            const weakSubConcepts = priorityData.priority[0]?.subConcepts || [];
-            
-            const actionPlan = generateMode1ActionPlan(studentLevel, weakestChapter, weakSubConcepts, weakestSubject, book);
-            
-            const report = {
-                studentLevel: studentLevel,
-                levelRationale: levelRationale,
-                academicSummary: `Dekh ${studentName}, is test mein tera ${weakestChapter} thoda kamzor raha. Fret mat kar, 7 din mein isko priority se clear karenge.`,
-                errorAnalysis: {
-                    conceptualCount: errBreakdown.conceptual || 0,
-                    applicationCount: errBreakdown.application || 0,
-                    behavioralCount: errBreakdown.behavioral || 0,
-                    forensicDeepDive: `Weakest chapter is ${weakestChapter}. Primary focus area is ${weakSubConcepts.join(', ') || 'basics'}.`,
-                    rootCause: 'Concept reinforcement needed.'
-                },
-                stopDoing: 'Stop skipping the NCERT textbook diagrams and summary tables.',
-                successSignal: 'Correctly answering 8 out of 10 timed topic questions.',
-                actionPlan: actionPlan,
-                parentCheckpoint: `Aaj raat bache se poochiye: '${weakestChapter} ke NCERT diagrams dikhao jo aaj draw kiye hain.'`,
-                parentBriefing: `Hello, child needs practice in ${weakestChapter}. We have given a simple 7-day target. Please ensure they study 30-45 mins daily.`
-            };
-            return res.json(report);
-        }
-
-        // ── MODE 2 & 3: FORENSIC DEEP AI ────────────────────────────────────
         const priorityBlock = studentMode === 'TOPPER_OPTIMIZE'
             ? 'No wrong chapters. Focus: speed simulation and competitive positioning.'
             : `
@@ -1221,18 +1030,24 @@ TRIAGE RULE: tonightHomework MUST target Priority Chapter #1. NEVER start with a
 FOCUS RULE: Address only the top 3-4 chapters across all 5 plan slots.
 RESOURCE RULE: Use the exact book references above in the "resource" field — do not invent other books.`;
 
-        // Pick a Hinglish/English example relevant to what this student actually got wrong
+        // ── 3. LANGUAGE / PERSONA BLOCK (subject-aware examples) ─────────────
+        const languageMode = (studentData.languageMode || 'english').toLowerCase();
+        const studentName = studentData.name || 'beta';
+
+        // Pick a Hinglish example relevant to what this student actually got wrong
         const failedSubjectsList = [...new Set(incorrectQuestions.map(q => (q.subject || '').toLowerCase()))];
         let hinglishExample = '';
         if (failedSubjectsList.includes('physics')) {
             hinglishExample = `"Dekh ${studentName}, tera Electromagnetic Induction bilkul toot gaya — 2 mein se 2 galat. Aaj raat sirf ek kaam karo: HC Verma Chapter 38 ke examples 38.1 se 38.4 tak padho, flux change ki derivation apne haath se likho. Ek baar ye samajh gaya toh NEET mein EMI ke 2 questions pakka milenge."`;
         } else if (failedSubjectsList.includes('chemistry')) {
-            hinglishExample = `"Dekh ${studentName}, tera Chemical Bonding wala part dekha — Q16 mein tune Micro aur Milli confuse kar diya, ye memory gap hai. Aaj raat NCERT Class XI Chemistry Chapter 4 Section 4.3 padho, table bana — hybridization types aur unke examples. Kal mujhe 5 examples sunana bina book dekhe."`;
+            hinglishExample = `"${studentName}, tera Chemical Bonding wala part dekha — Q16 mein tune Micro aur Milli confuse kar diya, ye memory gap hai. Aaj raat NCERT Class XI Chemistry Chapter 4 Section 4.3 padho, table bana — hybridization types aur unke examples. Kal mujhe 5 examples sunana bina book dekhe."`;
+        } else if (failedSubjectsList.includes('botany') || failedSubjectsList.includes('zoology') || failedSubjectsList.includes('biology')) {
+            hinglishExample = `"${studentName}, Cell Division waala question tera galat hua — Q35 mein tune G2 phase aur S phase ka role swap kar diya. Ye NCERT Class XI Biology Chapter 10, Section 10.2 mein clearly likha hai. Aaj raat ye ek section padho, book band karo, aur bina dekhte 5 lines likho ki interphase mein kya hota hai. Bas itna."`;
         } else {
-            hinglishExample = `"Dekh ${studentName}, Cell Division waala question tera galat hua — Q35 mein tune G2 phase aur S phase ka role swap kar diya. Ye NCERT Class XI Biology Chapter 10, Section 10.2 mein clearly likha hai. Aaj raat ye ek section padho, book band karo, aur bina dekhte 5 lines likho ki interphase mein kya hota hai. Bas itna."`;
+            hinglishExample = `"Dekh ${studentName}, aaj ka paper dekha — gaps hain but sab fixable hai. Is hafte priority list ke hisaab se chalte hain."`;
         }
 
-        const langBlock = prescriptionMode === 'mode2' ? `
+        const langBlock = languageMode === 'hinglish' ? `
 LANGUAGE — HINGLISH MODE:
 Write ALL text fields in Rahul Sir's natural Hinglish voice. Rules:
 - Technical terms always stay in English: chapter names, formula names, book names, Q numbers, NCERT, HC Verma, DC Pandey.
@@ -1246,9 +1061,10 @@ LANGUAGE — ENGLISH MODE:
 Write like Rahul Sir writing a personal letter — warm, direct, specific, never robotic.
 - GOOD: "${studentName}, your Biology recall is solid but Q35 shows you mixed up G2 phase and S phase — that's one line in NCERT Class XI Chapter 10 you need to fix tonight. Read Section 10.2, close the book, write it from memory. That's it for today."
 - BAD: "The student has demonstrated suboptimal performance in cell cycle questions."
-- Every taskInHinglish: name the specific Q number and sub-concept, give exact book+chapter, end with personal connection to NEET.
+- Every taskInHinglish (use this field even in English mode): name the specific Q number and sub-concept, give exact book+chapter, end with personal connection to NEET.
 - parentCheckpoint: plain English, no formulas, no technical terms.`;
 
+        // ── 4. FULL PROMPT ───────────────────────────────────────────────────
         const prompt = `
 Student: ${studentName}
 Score: ${perf.neetMarks ?? perf.score ?? 0} / ${perf.maxMarks ?? 240} | Correct: ${perf.totalCorrect ?? 0} | Wrong: ${perf.totalWrong ?? 0} | Unattempted: ${unattemptedCount}
@@ -1265,41 +1081,27 @@ ${JSON.stringify(incorrectQuestions, null, 2)}
 
 ${langBlock}
 
-=== ACTION TIMELINE ORDER ===
-Ensure the Action Plan timeline is structured in a clear chronological order:
-1. tonightHomework: Priority Chapter #1.
-2. day2Task: Follow-up on Priority Chapter #1 or address #2.
-3. day3_4Task: Priority #2 or #3.
-4. day5MiniTest: timed self-evaluation of wrong questions.
-5. day6_7Consolidation: Final practice / test of Priority #3 or #4.
-
-In each task/slot, you MUST include a "whyJustification" explaining the pedagogical rationale behind that specific day's assignment.
-
-=== FORENSIC FIELDS ===
-Provide these detailed forensic fields:
-1. "rootCause" (inside errorAnalysis): State the primary academic or behavioral blocker behind their mistakes (e.g., rushed formulas, reading gaps).
-2. "stopDoing": One specific counter-productive study habit they must cease immediately.
-3. "successSignal": A tangible test or milestone criteria confirming mastery of their weak chapter.
-
 Generate the complete diagnostic report and 7-day homework plan per schema.
+IMPORTANT: Use the exact book references from the Priority Attack List for each chapter's "resource" field.
+tonightHomework = Priority Chapter #1. day2Task = follow-up same or #2. day3_4Task = Priority #2 or #3. day5MiniTest = redo exact wrong Qs. day6_7Consolidation = Priority #3 or #4.
 `;
 
         const tailoredInstructions = buildSubjectSpecificInstructions(incorrectQuestions, studentMode);
 
+        // ── 5. SCHEMA — 5-slot homework plan ────────────────────────────────
         const homeworkSlotSchema = {
             type: Type.OBJECT,
             properties: {
                 chapter:         { type: Type.STRING, description: "Exact chapter name being addressed in this slot." },
                 subject:         { type: Type.STRING, description: "Subject: Physics, Chemistry, Botany, or Zoology." },
                 taskType:        { type: Type.STRING, description: "Exactly one of: 'NCERT Active Recall', 'Formula Derivation', 'Mechanism Flowchart', 'Numerical Drill', 'Speed Test', 'Trap-Spotting', 'Concept Re-read'." },
-                resource:        { type: Type.STRING, description: "The EXACT book reference from the Priority Attack List for this chapter." },
-                taskInHinglish:  { type: Type.STRING, description: "Rahul Sir's homework instruction. 3-5 sentences MAX." },
+                resource:        { type: Type.STRING, description: "The EXACT book reference from the Priority Attack List for this chapter. Biology: 'NCERT Class XI/XII Biology, Chapter X, Section Y'. Physics: 'Formula Set: [equations] | HC Verma Ch X + DC Pandey Ch Y'. Chemistry Organic: 'NCERT Ch X + MS Chouhan'. Chemistry Physical: 'NCERT Ch X + N Avasthi'. Chemistry Inorganic: 'NCERT Ch X + VK Jaiswal'. DO NOT invent references not in the priority list." },
+                taskInHinglish:  { type: Type.STRING, description: "Rahul Sir's homework instruction. MUST: (1) Name the specific Q number and sub-concept that was wrong, (2) Give the exact book+section to use, (3) Describe exactly what to do (read, derive, draw, solve X problems in Y minutes), (4) End with ONE motivational line connecting to NEET. 3-5 sentences MAX." },
                 durationMinutes: { type: Type.INTEGER, description: "Realistic time in minutes (20-90)." },
-                selfCheck:       { type: Type.STRING, description: "Specific self-test WITHOUT notes." },
-                mentorNote:      { type: Type.STRING, description: "One short Rahul Sir line — warm, honest, connects this chapter to their NEET score." },
-                whyJustification: { type: Type.STRING, description: "Pedagogical justification for why this step is assigned on this day." }
+                selfCheck:       { type: Type.STRING, description: "Specific self-test WITHOUT notes. Biology: 'Close NCERT, write 5-line summary of [topic] from memory'. Physics: 'Solve [specific type] problem without formula sheet in under 3 minutes'. Chemistry: 'Write the mechanism of [reaction] from memory'." },
+                mentorNote:      { type: Type.STRING, description: "One short Rahul Sir line — warm, honest, connects this chapter to their NEET score." }
             },
-            required: ["chapter", "subject", "taskType", "resource", "taskInHinglish", "durationMinutes", "selfCheck", "mentorNote", "whyJustification"]
+            required: ["chapter", "subject", "taskType", "resource", "taskInHinglish", "durationMinutes", "selfCheck", "mentorNote"]
         };
 
         const reportText = await geminiQueue.add(async () => {
@@ -1309,27 +1111,22 @@ Generate the complete diagnostic report and 7-day homework plan per schema.
                 config: {
                     systemInstruction: tailoredInstructions,
                     responseMimeType: "application/json",
-                    temperature: 0.1,
-                    maxOutputTokens: 8192,
                     responseSchema: {
                         type: Type.OBJECT,
                         properties: {
                             studentLevel:    { type: Type.STRING, description: "Exactly one of: 'Foundation', 'Application', 'Refinement'." },
                             levelRationale:  { type: Type.STRING, description: "One sentence grounded in actual test data." },
-                            academicSummary: { type: Type.STRING, description: "2-sentence summary in Rahul Sir's voice. Address by name." },
+                            academicSummary: { type: Type.STRING, description: "2-sentence summary in Rahul Sir's voice. Address by name. State the single biggest bottleneck and immediate path forward." },
                             errorAnalysis: {
                                 type: Type.OBJECT,
                                 properties: {
                                     conceptualCount:  { type: Type.INTEGER },
                                     applicationCount: { type: Type.INTEGER },
                                     behavioralCount:  { type: Type.INTEGER },
-                                    forensicDeepDive: { type: Type.STRING, description: "Chapter-by-chapter breakdown in Rahul Sir's voice." },
-                                    rootCause:        { type: Type.STRING, description: "Primary academic or behavioral blocker behind mistakes." }
+                                    forensicDeepDive: { type: Type.STRING, description: "Chapter-by-chapter breakdown in Rahul Sir's voice — name specific sub-concepts and Q numbers that were wrong and exactly why." }
                                 },
-                                required: ["conceptualCount", "applicationCount", "behavioralCount", "forensicDeepDive", "rootCause"]
+                                required: ["conceptualCount", "applicationCount", "behavioralCount", "forensicDeepDive"]
                             },
-                            stopDoing:     { type: Type.STRING, description: "Counter-productive study/test habit they must immediately stop." },
-                            successSignal: { type: Type.STRING, description: "Tangible criteria confirming chapter mastery." },
                             actionPlan: {
                                 type: Type.OBJECT,
                                 properties: {
@@ -1339,33 +1136,32 @@ Generate the complete diagnostic report and 7-day homework plan per schema.
                                     day5MiniTest: {
                                         type: Type.OBJECT,
                                         properties: {
-                                            instructions:    { type: Type.STRING },
-                                            passCriteria:    { type: Type.STRING },
-                                            durationMinutes: { type: Type.INTEGER },
-                                            whyJustification: { type: Type.STRING }
+                                            instructions:    { type: Type.STRING, description: "Rahul Sir tells student to redo the exact wrong Qs from this paper under timed conditions. Name specific Q numbers, set a time limit, explain what to do differently this time." },
+                                            passCriteria:    { type: Type.STRING, description: "What 'pass' means — e.g., '4 out of 5 correct means fixed. Less = one more revision loop.'" },
+                                            durationMinutes: { type: Type.INTEGER }
                                         },
-                                        required: ["instructions", "passCriteria", "durationMinutes", "whyJustification"]
+                                        required: ["instructions", "passCriteria", "durationMinutes"]
                                     },
                                     day6_7Consolidation: { ...homeworkSlotSchema }
                                 },
                                 required: ["tonightHomework", "day2Task", "day3_4Task", "day5MiniTest", "day6_7Consolidation"]
                             },
-                            parentCheckpoint: { type: Type.STRING },
-                            parentBriefing:   { type: Type.STRING }
+                            parentCheckpoint: { type: Type.STRING, description: "ONE non-technical question a parent can ask tonight to verify homework was done. Understandable by a non-science parent. In Hinglish or English per mode." },
+                            parentBriefing:   { type: Type.STRING, description: "Warm but specific note for parents — what happened in this test, what the student does this week, exactly ONE actionable thing parents can do to support." }
                         },
-                        required: ["studentLevel", "levelRationale", "academicSummary", "errorAnalysis", "stopDoing", "successSignal", "actionPlan", "parentCheckpoint", "parentBriefing"]
+                        required: ["studentLevel", "levelRationale", "academicSummary", "errorAnalysis", "actionPlan", "parentCheckpoint", "parentBriefing"]
                     }
                 }
             });
             return response.text;
         });
 
-        const report = safeParseJSON(reportText);
+        const report = JSON.parse(reportText);
         return res.json(report);
 
     } catch (error) {
         console.error("Prescription generation failure:", error);
-        return res.status(500).json({ error: 'Could not generate prescription due to parsing or API anomaly.' });
+        return res.status(500).json({ error: 'Could not generate blueprint due to parsing or API anomaly.' });
     }
 });
 

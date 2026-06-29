@@ -835,82 +835,117 @@ const MODE1_TEMPLATES = {
     }
 };
 
-function generateMode1Report(studentData, testMetadata, studentLevel, levelRationale, weakestChapter, weakSubConcepts, errBreakdown) {
+function generateMode1Report(studentData, testMetadata, studentLevel, levelRationale, priorityChapters, errBreakdown) {
     const name      = studentData.name || 'beta';
     const perf      = studentData.performance || {};
     const incorrect = testMetadata.incorrectQuestions || [];
+    const tmpl      = MODE1_TEMPLATES[studentLevel] || MODE1_TEMPLATES['Application'];
 
-    // Get top subject and book for the weakest chapter
-    // Find subject from the weakest chapter's incorrect questions (not just the first wrong question overall)
-    const weakestChapterQ = incorrect.find(q => q.chapter === weakestChapter);
-    const topSubject = weakestChapterQ?.subject || incorrect[0]?.subject || 'Biology';
-    const bookGuide  = getBookGuidance(topSubject, weakestChapter, null);
-    const bookRef    = topSubject.toLowerCase() === 'physics'
-        ? 'HC Verma'
-        : topSubject.toLowerCase() === 'chemistry'
-            ? bookGuide.primaryBook.split('—')[0].trim()
-            : 'NCERT';
+    // ── Helper: get book reference for a given subject ────────────────
+    function bookForSubject(subject, chapter) {
+        const subj = (subject || '').toLowerCase();
+        const guide = getBookGuidance(subject, chapter, null);
+        if (subj === 'physics') return 'HC Verma + DC Pandey';
+        if (subj === 'chemistry') return guide.primaryBook ? guide.primaryBook.split('—')[0].trim() : 'NCERT + N Avasthi';
+        return 'NCERT'; // Biology (Botany/Zoology)
+    }
 
-    const tmpl = MODE1_TEMPLATES[studentLevel] || MODE1_TEMPLATES['Application'];
-    const topics = weakSubConcepts.slice(0, 3);
+    // ── Slot assignment: spread across top 4 priority chapters ────────
+    // p0 = highest priority, p1 = second, p2 = third, p3 = fourth (or fallback to p0/p1)
+    const p  = priorityChapters; // array of { chapter, subject, wrong, subConcepts, dominantError }
+    const p0 = p[0] || { chapter: 'Revision', subject: 'Biology', subConcepts: [] };
+    const p1 = p[1] || p0;
+    const p2 = p[2] || p1;
+    const p3 = p[3] || p2;
+
+    const book0 = bookForSubject(p0.subject, p0.chapter);
+    const book1 = bookForSubject(p1.subject, p1.chapter);
+    const book2 = bookForSubject(p2.subject, p2.chapter);
+    const book3 = bookForSubject(p3.subject, p3.chapter);
+
+    const topics0 = (p0.subConcepts || []).slice(0, 3);
+    const topics1 = (p1.subConcepts || []).slice(0, 2);
+
+    // Self-check variations per slot
+    const selfCheck0 = `${p0.chapter} ka ek unseen problem bina formula sheet ke solve karo — 5 minute timer lagao.`;
+    const selfCheck1 = `${p1.chapter} ke 3 key points bina book ke likhkar dekho.`;
+    const selfCheck2 = topics1.length > 0
+        ? `${topics1[0]} ko ek example se explain karo — bina notes ke.`
+        : `${p2.chapter} ke 2 problems solve karo bina help ke.`;
+    const selfCheck3 = `Last 3 saal ke ${p3.chapter} ke questions time karke solve karo.`;
+
+    // How many unique subjects are failing
+    const uniqueSubjects = [...new Set(p.map(c => c.subject))];
+    const subjectSummary = uniqueSubjects.length > 1
+        ? `${uniqueSubjects.join(', ')} mein gaps hain`
+        : `${p0.subject} mein kuch gaps hain`;
 
     const actionPlan = {
         tonightHomework: {
-            chapter: weakestChapter, subject: topSubject,
-            taskType: studentLevel === 'Foundation' ? 'NCERT Active Recall' : studentLevel === 'Refinement' ? 'Speed Test' : 'Numerical Drill',
-            resource: bookRef,
-            taskInHinglish: tmpl.tonight(weakestChapter, topSubject),
+            chapter: p0.chapter,
+            subject: p0.subject,
+            taskType: studentLevel === 'Foundation' ? 'NCERT Active Recall' : 'Error Correction',
+            resource: book0,
+            taskInHinglish: tmpl.tonight(p0.chapter, p0.subject),
             durationMinutes: studentLevel === 'Foundation' ? 30 : 25,
-            selfCheck: tmpl.selfCheck(weakestChapter),
-            mentorNote: tmpl.mentor(weakestChapter)
+            selfCheck: selfCheck0,
+            mentorNote: tmpl.mentor(p0.chapter)
         },
         day2Task: {
-            chapter: weakestChapter, subject: topSubject,
+            chapter: p1.chapter,
+            subject: p1.subject,
             taskType: 'Concept Re-read',
-            resource: bookRef,
-            taskInHinglish: tmpl.day2(weakestChapter, bookRef),
+            resource: book1,
+            taskInHinglish: `${p1.chapter} pe kal focus karo — ${book1} se medium difficulty questions karo. ${p1.wrong} questions is chapter mein galat hue the.`,
             durationMinutes: 30,
-            selfCheck: `${weakestChapter} ke 3 key points bina book ke likhkar dekho.`,
-            mentorNote: `Consistency hi NEET ka formula hai.`
+            selfCheck: selfCheck1,
+            mentorNote: `Ek din ek chapter — consistency hi NEET ka formula hai.`
         },
         day3_4Task: {
-            chapter: topics[0] || weakestChapter, subject: topSubject,
+            chapter: p2.chapter,
+            subject: p2.subject,
             taskType: 'Trap-Spotting',
-            resource: bookRef,
-            taskInHinglish: tmpl.day3(topics),
+            resource: book2,
+            taskInHinglish: topics1.length > 0
+                ? `${p2.chapter} mein ${topics1.join(' aur ')} sub-topics pe focus karo — yahi weak points hain. ${book2} se targeted practice karo.`
+                : `${p2.chapter} pe aaj zyada time do — ${p2.wrong} questions galat hue the is area mein.`,
             durationMinutes: 35,
-            selfCheck: `Jo sub-topic galat tha, usse ek example explain karo — bina notes ke.`,
+            selfCheck: selfCheck2,
             mentorNote: `Sub-concept fix ho gaya toh chapter fix ho gaya.`
         },
         day5MiniTest: {
-            instructions: `Aaj woh exact questions dobara karo jo is test mein galat hue the — ${incorrect.slice(0,5).map(q=>`Q${q.qno}`).join(', ')}. Timer lagao, exactly 1 minute per question.`,
+            instructions: `Aaj woh exact questions dobara karo jo is test mein galat hue the — ${incorrect.slice(0, 5).map(q => `Q${q.qno}`).join(', ')}. Timer lagao, exactly 1 minute per question. Across all subjects — ${uniqueSubjects.join(', ')}.`,
             passCriteria: `${Math.ceil(Math.min(incorrect.length, 5) * 0.7)} out of ${Math.min(incorrect.length, 5)} correct = improvement confirmed.`,
             durationMinutes: Math.min(incorrect.length, 5) * 1 + 5
         },
         day6_7Consolidation: {
-            chapter: weakestChapter, subject: topSubject,
-            taskType: 'Speed Test',
+            chapter: p3.chapter,
+            subject: p3.subject,
+            taskType: 'Mixed Practice + Speed Test',
             resource: 'Previous Year NEET Questions',
-            taskInHinglish: tmpl.day4_5(topSubject),
+            taskInHinglish: `Week ke end mein ${p3.chapter} karo — phir ek 20-question mixed set across ${uniqueSubjects.join(' + ')} lao. Real exam feel ke liye timer lagao.`,
             durationMinutes: 40,
-            selfCheck: `Last 3 years ke ${weakestChapter} questions time karke solve karo.`,
-            mentorNote: tmpl.mentor(weakestChapter)
+            selfCheck: selfCheck3,
+            mentorNote: `Ye week ka final push hai — ${uniqueSubjects.join(' aur ')} dono cover ho jayenge.`
         }
     };
+
+    // Summary lists top chapters across all subjects
+    const chapterList = p.slice(0, 3).map(c => `${c.chapter} (${c.subject}, ${c.wrong} wrong)`).join('; ');
 
     return {
         studentLevel,
         levelRationale,
-        academicSummary: `${name}, is test mein ${weakestChapter} pe kuch gaps aaye hain — fixable hai. Is hafte ek cheez pe focus karo aur improvement guaranteed hai.`,
+        academicSummary: `${name}, is test mein ${subjectSummary} — fixable hai. Sabse zyada priority: ${p0.chapter} (${p0.wrong} questions). Is hafte systematic karo — har din ek area.`,
         errorAnalysis: {
             conceptualCount:  errBreakdown.conceptual  || 0,
             applicationCount: errBreakdown.application || 0,
             behavioralCount:  errBreakdown.behavioral  || 0,
-            forensicDeepDive: `Weakest area: ${weakestChapter}. Sub-topics to focus: ${topics.join(', ') || 'basics'}. ${incorrect.length} questions need revision.`
+            forensicDeepDive: `Top weak areas: ${chapterList}. ${incorrect.length} total questions need revision across ${uniqueSubjects.length} subject(s).`
         },
         actionPlan,
-        parentCheckpoint: `Aaj raat ${name} se poochiye: "${weakestChapter} ke baare mein aaj kya padha? Ek cheez batao."`,
-        parentBriefing:   `${name} ko ${weakestChapter} mein thodi practice aur chahiye. Hum ne 7-din ka simple plan diya hai. Please ensure they study 30-40 mins daily this week.`
+        parentCheckpoint: `Aaj raat ${name} se poochiye: "${p0.chapter} aur ${p1.chapter} — dono pe kuch padha aaj? Ek point batao."`,
+        parentBriefing: `${name} ko is hafte ${subjectSummary}. Sabse bada gap: ${p0.chapter}. Hum ne 7-din ka plan diya hai jo ${uniqueSubjects.join(' aur ')} dono cover karta hai. Please ensure 30-40 mins daily study this week.`
     };
 }
 
@@ -975,7 +1010,7 @@ app.post('/api/generate-prescription', async (req, res) => {
             levelToneInstructions = 'Balanced: fix top conceptual gap first, then reinforce with targeted drills.';
         }
 
-        // ── 1b. WEAKEST CHAPTER (needed for both Mode 1 and Mode 2/3) ────────
+        // ── 1b. PRIORITY CHAPTER RANKING (needed for both Mode 1 and Mode 2/3) ────────
         const priorityDataEarly = getTopPriorityChapters(incorrectQuestions, 4);
         const weakestChapter    = priorityDataEarly.priority[0]?.chapter || 'the weakest chapter';
         const weakSubConcepts   = priorityDataEarly.priority[0]?.subConcepts || [];
@@ -986,7 +1021,8 @@ app.post('/api/generate-prescription', async (req, res) => {
             const mode1Report = generateMode1Report(
                 studentData, testMetadata,
                 studentLevel, levelRationale,
-                weakestChapter, weakSubConcepts, errBreakdown
+                priorityDataEarly.priority,   // full ranked array, not just weakest chapter
+                errBreakdown
             );
             console.log(`✅ Mode 1 report generated for ${studentData.name} — no API call used`);
             return res.json(mode1Report);

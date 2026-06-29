@@ -377,14 +377,16 @@ Format: [{"qno": "1", "text": "What is the unit of force?", "subject": "Physics"
             contents: [{ parts: [{ text: promptText }] }],
             generationConfig: {
                 temperature: 0.2,
-                maxOutputTokens: 16384,          // ← FIX: missing token limit caused truncation
                 responseMimeType: "application/json"
             }
         };
 
         if (fileData && mimeType) {
             requestBody.contents[0].parts.push({
-                inlineData: { mimeType: mimeType, data: fileData }
+                inlineData: {
+                    mimeType: mimeType,
+                    data: fileData
+                }
             });
         } else if (textContent) {
             requestBody.contents[0].parts.push({ text: `\n\nDocument Content:\n${textContent}` });
@@ -409,30 +411,14 @@ Format: [{"qno": "1", "text": "What is the unit of force?", "subject": "Physics"
         }
 
         const rawText = data.candidates[0].content.parts[0].text;
-        console.log(`📋 extract-questions: response length=${rawText.length}`);
 
-        // Safe JSON parse — handles markdown fences and truncated responses
-        let parsedResults;
         try {
-            parsedResults = JSON.parse(rawText);
-        } catch (e1) {
-            const cleaned = rawText.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
-            try {
-                parsedResults = JSON.parse(cleaned);
-            } catch (e2) {
-                const lastBrace = cleaned.lastIndexOf('}');
-                try {
-                    parsedResults = JSON.parse(cleaned.substring(0, lastBrace + 1) + ']');
-                    console.warn('⚠️ Truncation recovery used — some questions may be missing');
-                } catch (e3) {
-                    console.error('All parse attempts failed. Preview:', rawText.substring(0, 300));
-                    return res.status(500).json({ error: 'Failed to parse AI response.' });
-                }
-            }
+            const parsedResults = JSON.parse(rawText);
+            return res.json({ results: parsedResults });
+        } catch (parseError) {
+            console.error("Failed to parse JSON from AI:", rawText);
+            return res.status(500).json({ error: 'Failed to parse AI response.' });
         }
-
-        console.log(`✅ extract-questions: ${Array.isArray(parsedResults) ? parsedResults.length : '?'} questions extracted`);
-        return res.json({ results: parsedResults });
 
     } catch (error) {
         console.error("Server Error:", error);
@@ -1065,6 +1051,44 @@ Write like Rahul Sir writing a personal letter — warm, direct, specific, never
 - parentCheckpoint: plain English, no formulas, no technical terms.`;
 
         // ── 4. FULL PROMPT ───────────────────────────────────────────────────
+        const mode2HinglishStructure = languageMode === 'hinglish' ? `
+STRUCTURE YOUR RESPONSE EXACTLY LIKE THIS — no deviations:
+
+🔴 ROOT CAUSE (2 lines max):
+Naam lekar bolo — exactly kya hua is test mein. Generic mat bolo.
+
+📚 READING SEQUENCE (numbered — student must know WHY each step comes before the next):
+1. TONIGHT (Day 1): [Exact task] | [Exact book + chapter + section] | WHY FIRST: [one line reason]
+2. DAY 2: [Exact task] | [Exact resource] | WHY NOW: [builds on Day 1 because...]
+3. DAY 3-4: [Exact task] | [Exact resource] | WHY NOW: [reason]
+4. DAY 5 MINI TEST: Redo exactly Q[numbers] — timed. Pass criteria: X/Y correct.
+5. DAY 6-7: [Consolidation task] | [Resource] | WHAT TO MEASURE: [specific outcome]
+
+⚡ EK CHEEZ BAND KARO:
+[The single biggest mistake this student is making — specific, not generic]
+
+✅ SUCCESS SIGNAL:
+[Exactly how student will know this week worked — measurable]
+` : `
+STRUCTURE YOUR RESPONSE EXACTLY LIKE THIS:
+
+🔴 ROOT CAUSE (2 lines max):
+Address by name — exactly what happened in this test. Be specific.
+
+📚 READING SEQUENCE (numbered — student must understand WHY each step is in this order):
+1. TONIGHT (Day 1): [Exact task] | [Exact book + chapter + section] | WHY FIRST: [one line]
+2. DAY 2: [Exact task] | [Exact resource] | WHY NOW: [builds on Day 1 because...]
+3. DAY 3-4: [Exact task] | [Exact resource] | WHY NOW: [reason]
+4. DAY 5 MINI TEST: Redo exactly Q[numbers] — timed. Pass criteria: X/Y correct.
+5. DAY 6-7: [Consolidation task] | [Resource] | WHAT TO MEASURE: [specific outcome]
+
+⚡ ONE THING TO STOP:
+[The single biggest mistake — specific, not generic]
+
+✅ SUCCESS SIGNAL:
+[Exactly how student will know this week worked — measurable]
+`;
+
         const prompt = `
 Student: ${studentName}
 Score: ${perf.neetMarks ?? perf.score ?? 0} / ${perf.maxMarks ?? 240} | Correct: ${perf.totalCorrect ?? 0} | Wrong: ${perf.totalWrong ?? 0} | Unattempted: ${unattemptedCount}
@@ -1080,6 +1104,8 @@ ${priorityBlock}
 ${JSON.stringify(incorrectQuestions, null, 2)}
 
 ${langBlock}
+
+${mode2HinglishStructure}
 
 Generate the complete diagnostic report and 7-day homework plan per schema.
 IMPORTANT: Use the exact book references from the Priority Attack List for each chapter's "resource" field.

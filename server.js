@@ -841,7 +841,9 @@ function generateMode1Report(studentData, testMetadata, studentLevel, levelRatio
     const incorrect = testMetadata.incorrectQuestions || [];
 
     // Get top subject and book for the weakest chapter
-    const topSubject = incorrect[0]?.subject || 'Biology';
+    // Find subject from the weakest chapter's incorrect questions (not just the first wrong question overall)
+    const weakestChapterQ = incorrect.find(q => q.chapter === weakestChapter);
+    const topSubject = weakestChapterQ?.subject || incorrect[0]?.subject || 'Biology';
     const bookGuide  = getBookGuidance(topSubject, weakestChapter, null);
     const bookRef    = topSubject.toLowerCase() === 'physics'
         ? 'HC Verma'

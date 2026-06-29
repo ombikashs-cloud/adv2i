@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BioRivet – Personalized Diagnostics for NEET Coaching Institutes</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --navy: #0f172a;
+  --blue: #2563eb;
+  --blue-hover: #1d4ed8;
+  --light-blue: #eff6ff;
+  --green: #15803d;
+  --light-green: #f0fdf4;
+  --orange: #c2410c;
+  --light-orange: #fff7ed;
+  --red: #b91c1c;
+  --light-red: #fef2f2;
+  --purple: #6d28d9;
+  --light-purple: #faf5ff;
+  --teal: #0f766e;
+  --light-teal: #f0fdfa;
+  --grey: #f8fafc;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --muted: #64748b;
+}
+body { font-family: 'Inter', sans-serif; background: var(--grey); color: var(--text); overflow-x: hidden; }
+
+/* ── TOPBAR ── */
+.topbar {
+  background: rgba(15,23,42,0.92);
+  backdrop-filter: blur(12px);
+  color: white; padding: 0 32px;
+  display: flex; align-items: center; height: 64px;
+  position: sticky; top: 0; z-index: 100;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: white; margin-right: 40px; }
+.logo-box {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  border-radius: 8px; display: flex; align-items: center;
+  justify-content: center; font-weight: 800; color: white; font-size: 14px;
+  box-shadow: 0 4px 10px rgba(37,99,235,0.3);
+}
+.logo-img { height: 38px; border-radius: 8px; }
+.brand-name { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; }
+.brand-tag { font-size: 10px; opacity: 0.6; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
+.nav-links { display: flex; gap: 4px; flex: 1; }
+.nav-link { color: rgba(255,255,255,0.65); text-decoration: none; padding: 8px 14px; border-radius: 6px; font-size: 13.5px; font-weight: 500; transition: all 0.2s; }
+.nav-link:hover, .nav-link.active { background: rgba(255,255,255,0.1); color: white; }
+.nav-cta {
+  margin-left: auto; background: #3b82f6; color: white;
+  padding: 8px 18px; border-radius: 6px; font-size: 13px; font-weight: 600;
+  cursor: pointer; text-decoration: none; transition: all 0.2s; white-space: nowrap;
+}
+.nav-cta:hover { background: #2563eb; transform: translateY(-1px); }
+.nav-login {
+  margin-left: 10px; background: rgba(255,255,255,0.1); color: white;
+  padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600;
+  cursor: pointer; text-decoration: none; border: 1px solid rgba(255,255,255,0.2); transition: all 0.2s;
+}
+.nav-login:hover { background: rgba(255,255,255,0.18); }
+
+/* ── HERO ── */
+.hero {
+  background: radial-gradient(circle at top right, #1e293b, #0f172a);
+  color: white; padding: 88px 32px 72px; text-align: center; position: relative; overflow: hidden;
+}
+.hero::before {
+  content: ''; position: absolute; width: 700px; height: 700px;
+  background: radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%);
+  top: -250px; left: 50%; transform: translateX(-50%); pointer-events: none;
+}
+.hero-badge {
+  display: inline-block; background: rgba(59,130,246,0.12);
+  border: 1px solid rgba(59,130,246,0.3); color: #60a5fa;
+  padding: 6px 18px; border-radius: 20px; font-size: 11.5px; font-weight: 700;
+  margin-bottom: 24px; letter-spacing: 0.8px; text-transform: uppercase;
+}
+.hero h1 { font-size: 50px; font-weight: 800; line-height: 1.13; margin-bottom: 20px; letter-spacing: -0.03em; }
+.hero h1 span { background: linear-gradient(to right, #60a5fa, #a78bfa); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.hero p { font-size: 18px; color: #94a3b8; max-width: 620px; margin: 0 auto 36px; line-height: 1.65; }
+.hero-btns { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+.hero-btn { padding: 14px 28px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; text-decoration: none; transition: all 0.2s; border: none; display: inline-flex; align-items: center; gap: 8px; }
+.btn-primary { background: #3b82f6; color: white; box-shadow: 0 4px 14px rgba(59,130,246,0.4); }
+.btn-primary:hover { background: #2563eb; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(59,130,246,0.5); }
+.btn-outline { background: rgba(255,255,255,0.06); color: white; border: 1px solid rgba(255,255,255,0.2); }
+.btn-outline:hover { background: rgba(255,255,255,0.12); transform: translateY(-2px); }
+
+/* ── STATS BAR ── */
+.stats-bar {
+  background: white; border-bottom: 1px solid var(--border); padding: 28px 32px;
+  display: flex; gap: 56px; justify-content: center; flex-wrap: wrap;
+  box-shadow: 0 8px 24px -8px rgba(0,0,0,0.06);
+}
+.stat { text-align: center; }
+.stat-val { font-size: 34px; font-weight: 800; color: var(--navy); line-height: 1; margin-bottom: 6px; }
+.stat-lbl { font-size: 11.5px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
+
+/* ── MAIN ── */
+.main { padding: 72px 32px; max-width: 1280px; margin: 0 auto; }
+
+/* ── SECTION HEADERS ── */
+.section-header { margin-bottom: 36px; }
+.section-title { font-size: 26px; font-weight: 800; color: var(--navy); margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+.section-sub { font-size: 15px; color: var(--muted); }
+
+/* ── BEFORE/AFTER COMPARISON ── */
+.compare-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+  border-radius: 16px; overflow: hidden; border: 1px solid var(--border);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.08); margin-bottom: 72px;
+}
+.compare-col { padding: 36px; }
+.compare-col.before { background: #fef2f2; border-right: 1px solid #fecaca; }
+.compare-col.after { background: #f0fdf4; }
+.compare-header {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
+  margin-bottom: 28px; padding-bottom: 16px; border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+.compare-header.red { color: #b91c1c; }
+.compare-header.green { color: #15803d; }
+.compare-item { display: flex; gap: 14px; margin-bottom: 24px; }
+.compare-icon { font-size: 22px; flex-shrink: 0; margin-top: 2px; }
+.compare-item h4 { font-size: 15px; font-weight: 700; color: var(--navy); margin-bottom: 5px; }
+.compare-item p { font-size: 13.5px; color: var(--muted); line-height: 1.55; }
+.compare-item p strong { color: #b91c1c; }
+.compare-item p strong.pos { color: #15803d; }
+
+/* ── TOOL GRID ── */
+.tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 24px; margin-bottom: 72px; }
+.tool-card {
+  background: white; border-radius: 16px; border: 1px solid var(--border); overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.25,0.8,0.25,1); display: flex; flex-direction: column;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); position: relative;
+}
+.tool-card:hover { transform: translateY(-5px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); border-color: #cbd5e1; }
+.tool-card.featured { border: 2px solid var(--blue); }
+.featured-ribbon {
+  position: absolute; top: 16px; right: 16px; background: var(--blue); color: white;
+  font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; letter-spacing: 0.5px; z-index: 2;
+}
+.card-color-bar { height: 6px; width: 100%; }
+.card-body { padding: 24px; flex: 1; display: flex; flex-direction: column; }
+.card-icon { width: 56px; height: 56px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 20px; flex-shrink: 0; }
+.card-meta { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.meta-badge { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 8px; }
+.card-title { font-size: 18px; font-weight: 700; color: var(--navy); margin-bottom: 10px; }
+.card-desc { font-size: 14px; color: var(--muted); line-height: 1.6; flex: 1; margin-bottom: 20px; }
+.card-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 24px; }
+.tag { font-size: 11px; font-weight: 500; background: var(--grey); color: #475569; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border); }
+.card-footer { display: flex; gap: 12px; align-items: center; padding-top: 20px; border-top: 1px solid var(--border); margin-top: auto; }
+.card-btn { flex: 1; padding: 10px; border-radius: 8px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; text-align: center; transition: all 0.2s; }
+.card-btn-primary { background: var(--navy); color: white; }
+.card-btn-primary:hover { background: #0f172a; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(15,23,42,0.2); }
+.card-btn-locked { background: #f1f5f9; color: #94a3b8; cursor: default; }
+.card-status { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--navy); }
+.dot-live { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; animation: pulse 2s infinite; }
+.dot-plan { width: 8px; height: 8px; border-radius: 50%; background: #cbd5e1; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.4); } 70% { box-shadow: 0 0 0 6px rgba(34,197,94,0); } 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); } }
+.tool-card.coming-soon { background: #f8fafc; border: 1px dashed #cbd5e1; }
+.tool-card.coming-soon .card-body { opacity: 0.7; }
+.tool-card.coming-soon:hover { transform: none; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+
+/* ── 3 MODES SECTION ── */
+.modes-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 72px; }
+.mode-card { background: white; border-radius: 16px; border: 1px solid var(--border); padding: 28px; position: relative; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.03); transition: transform 0.2s; }
+.mode-card:hover { transform: translateY(-4px); }
+.mode-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 20px; margin-bottom: 16px; letter-spacing: 0.5px; text-transform: uppercase; }
+.mode-number { font-size: 48px; font-weight: 800; opacity: 0.07; position: absolute; top: 16px; right: 20px; line-height: 1; }
+.mode-card h3 { font-size: 18px; font-weight: 700; color: var(--navy); margin-bottom: 10px; }
+.mode-card p { font-size: 14px; color: var(--muted); line-height: 1.6; margin-bottom: 16px; }
+.mode-features { list-style: none; padding: 0; }
+.mode-features li { font-size: 13px; color: var(--text); margin-bottom: 8px; display: flex; align-items: flex-start; gap: 8px; }
+.mode-features li::before { content: '✓'; color: var(--green); font-weight: 700; flex-shrink: 0; }
+
+/* ── SHOWCASE ── */
+.showcase-row { display: flex; gap: 40px; align-items: center; margin-bottom: 40px; background: white; padding: 40px; border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.03); }
+.showcase-row:nth-child(even) { flex-direction: row-reverse; }
+.showcase-info { flex: 1; }
+.showcase-visual { flex: 1; min-width: 280px; }
+.sc-badge { display: inline-block; padding: 6px 12px; background: #eff6ff; color: #1e40af; border-radius: 8px; font-size: 12px; font-weight: 700; margin-bottom: 16px; }
+.sc-title { font-size: 22px; font-weight: 800; color: var(--navy); margin-bottom: 12px; }
+.sc-desc { font-size: 14.5px; color: var(--muted); line-height: 1.65; margin-bottom: 20px; }
+.sc-features ul { list-style: none; padding: 0; }
+.sc-features li { font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+.showcase-panel { background: #f8fafc; border: 1px solid var(--border); padding: 24px; border-radius: 12px; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.05); }
+
+/* ── BENEFITS ── */
+.benefits-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 24px; margin-bottom: 72px; }
+.benefit-card { background: white; padding: 28px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.02); transition: transform 0.2s; }
+.benefit-card:hover { transform: translateY(-3px); }
+.benefit-icon { font-size: 32px; margin-bottom: 16px; }
+.benefit-card h4 { font-size: 17px; color: var(--navy); margin-bottom: 10px; font-weight: 700; }
+.benefit-card p { font-size: 14px; color: var(--muted); line-height: 1.6; }
+
+/* ── WORKFLOW ── */
+.roadmap { display: flex; gap: 0; margin-bottom: 48px; overflow-x: auto; padding: 16px 0; }
+.rm-item { flex: 1; min-width: 160px; text-align: center; position: relative; padding: 0 12px; }
+.rm-item:not(:last-child)::after { content: ''; position: absolute; right: -50%; top: 20px; width: 100%; height: 2px; background: var(--border); z-index: 1; }
+.rm-circle { width: 40px; height: 40px; border-radius: 50%; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; position: relative; z-index: 2; border: 4px solid var(--grey); }
+.rm-active { background: var(--blue); color: white; box-shadow: 0 0 0 4px rgba(37,99,235,0.2); }
+.rm-label { font-size: 14px; font-weight: 700; color: var(--navy); }
+.rm-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+/* ── CTA BANNER ── */
+.cta-banner {
+  background: radial-gradient(circle at top right, #1e3a8a, #0f172a);
+  border-radius: 20px; padding: 56px 48px; text-align: center; margin-bottom: 72px;
+  color: white; position: relative; overflow: hidden;
+}
+.cta-banner::before {
+  content: ''; position: absolute; width: 500px; height: 500px;
+  background: radial-gradient(circle, rgba(59,130,246,0.15) 0%, transparent 70%);
+  top: -200px; right: -100px; pointer-events: none;
+}
+.cta-banner h2 { font-size: 32px; font-weight: 800; margin-bottom: 14px; letter-spacing: -0.02em; }
+.cta-banner p { font-size: 16px; color: #94a3b8; margin-bottom: 32px; max-width: 500px; margin-left: auto; margin-right: auto; line-height: 1.6; }
+.cta-banner .hero-btns { justify-content: center; }
+
+/* ── MODAL ── */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.8); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.modal-content { background: white; border-radius: 16px; padding: 36px; width: 90%; max-width: 420px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); }
+.modal-header { font-size: 20px; font-weight: 800; color: var(--navy); margin-bottom: 6px; }
+.modal-sub { font-size: 14px; color: var(--muted); margin-bottom: 24px; line-height: 1.5; }
+.modal-input { width: 100%; padding: 13px 16px; border: 1.5px solid var(--border); border-radius: 8px; margin-bottom: 12px; font-family: inherit; font-size: 14px; outline: none; transition: border-color 0.2s; }
+.modal-input:focus { border-color: var(--blue); }
+.modal-error { color: var(--red); font-size: 12px; margin-bottom: 16px; display: none; font-weight: 600; }
+.modal-btns { display: flex; gap: 10px; }
+.modal-btn { flex: 1; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
+.modal-btn-cancel { background: #f1f5f9; color: var(--navy); }
+.modal-btn-submit { background: var(--blue); color: white; }
+.modal-btn-submit:hover { background: var(--blue-hover); }
+
+/* ── FOOTER ── */
+.footer { background: var(--navy); color: rgba(255,255,255,0.55); text-align: center; padding: 36px 32px; font-size: 14px; }
+.footer strong { color: white; }
+
+@media(max-width:900px){
+  .compare-grid { grid-template-columns: 1fr; }
+  .compare-col.before { border-right: none; border-bottom: 1px solid #fecaca; }
+  .modes-grid { grid-template-columns: 1fr; }
+}
+@media(max-width:768px){
+  .hero h1 { font-size: 34px; }
+  .hero p { font-size: 16px; }
+  .stats-bar { gap: 28px; padding: 20px; }
+  .main { padding: 48px 20px; }
+  .topbar { padding: 0 16px; }
+  .nav-links { display: none; }
+  .tool-grid { grid-template-columns: 1fr; }
+  .showcase-row, .showcase-row:nth-child(even) { flex-direction: column; padding: 24px; }
+  .cta-banner { padding: 40px 24px; }
+  .cta-banner h2 { font-size: 24px; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <a class="brand" href="#">
+    <img src="logo.png" alt="BioRivet" class="logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+    <div class="logo-box" style="display:none">BR</div>
+    <div>
+      <div class="brand-name">BioRivet</div>
+      <div class="brand-tag">Know More. Fear Less.</div>
+    </div>
+  </a>
+  <div class="nav-links">
+    <a class="nav-link active" href="#problem">The Problem</a>
+    <a class="nav-link" href="#tools">Tools</a>
+    <a class="nav-link" href="#how-it-works">How It Works</a>
+    <a class="nav-link" href="#benefits">Benefits</a>
+  </div>
+  <a class="nav-cta" href="mailto:obs.biofac@gmail.com">Book Free Demo</a>
+  <a class="nav-login" href="#" onclick="showLoginModal(); return false;">Institute Login</a>
+</div>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">🧬 NEET Diagnostic Intelligence</div>
+  <h1>Give 1-on-1 Personalization<br><span>to Every Student.</span></h1>
+  <p>Without overloading your teachers. BioRivet turns every mock test into a personalized prescription — chapter-wise weakness, 7-day action plan, parent-ready report. In 3 minutes.</p>
+  <div class="hero-btns">
+    <a class="hero-btn btn-primary" href="#tools">Open Tools →</a>
+    <a class="hero-btn btn-outline" href="#problem">See the Problem We Solve</a>
+  </div>
+</div>
+
+<!-- STATS BAR -->
+<div class="stats-bar">
+  <div class="stat"><div class="stat-val">3</div><div class="stat-lbl">Live Tools</div></div>
+  <div class="stat"><div class="stat-val">180</div><div class="stat-lbl">Questions Supported</div></div>
+  <div class="stat"><div class="stat-val">3 min</div><div class="stat-lbl">Report Generation</div></div>
+  <div class="stat"><div class="stat-val">0</div><div class="stat-lbl">Setup Required</div></div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- ── THE PROBLEM WE SOLVE ── -->
+  <div id="problem" style="margin-bottom: 72px;">
+    <div class="section-header">
+      <div class="section-title">⚡ The Real Problem in Tier 2 Coaching</div>
+      <div class="section-sub">Why good institutes lose students — and how BioRivet fixes it.</div>
+    </div>
+
+    <div class="compare-grid">
+      <!-- BEFORE -->
+      <div class="compare-col before">
+        <div class="compare-header red">
+          <span style="font-size:20px;">✗</span> Your Centre Before BioRivet
+        </div>
+        <div class="compare-item">
+          <div class="compare-icon">😓</div>
+          <div>
+            <h4>The Human Constraint</h4>
+            <p>It is humanly impossible for one teacher to memorize individual concept gaps of <strong>150 different students.</strong> After every test, analysis just doesn't happen.</p>
+          </div>
+        </div>
+        <div class="compare-item">
+          <div class="compare-icon">📋</div>
+          <div>
+            <h4>Generic Homework</h4>
+            <p>Teachers are forced to assign the same homework to the whole batch — <strong>"Solve 50 questions from Chapter 3"</strong> — ignoring individual needs. Students stop guessing how to study.</p>
+          </div>
+        </div>
+        <div class="compare-item">
+          <div class="compare-icon">😤</div>
+          <div>
+            <h4>Unhappy Parents</h4>
+            <p>Parents leave because they feel their child is being ignored in a large batch. They demand personalized attention — <strong>you can't deliver it manually.</strong></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- AFTER -->
+      <div class="compare-col after">
+        <div class="compare-header green">
+          <span style="font-size:20px;">✓</span> Your Centre With BioRivet
+        </div>
+        <div class="compare-item">
+          <div class="compare-icon">🤖</div>
+          <div>
+            <h4>The Automated Capability</h4>
+            <p>BioRivet instantly analyses every student's mistakes down to the sub-topic level. <strong class="pos">Teachers get macro insights; students get exact micro remedies.</strong></p>
+          </div>
+        </div>
+        <div class="compare-item">
+          <div class="compare-icon">🎯</div>
+          <div>
+            <h4>Precision Prescriptions</h4>
+            <p>Students get personalized tasks — <em>"Draw mechanism flowcharts for exactly these two sub-topics."</em> <strong class="pos">Students stop guessing how to study.</strong></p>
+          </div>
+        </div>
+        <div class="compare-item">
+          <div class="compare-icon">💚</div>
+          <div>
+            <h4>Visible Proof of Care</h4>
+            <p>Provide parents with a weekly forensic breakdown and a personalized memo. <strong class="pos">Deliver the 1-on-1 attention parents are demanding — automatically.</strong></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TOOLS ── -->
+  <div id="tools">
+    <div class="section-header">
+      <div class="section-title">🧰 Live & Planned Tools</div>
+      <div class="section-sub">All tools are web-based. No software installation. Works on any device.</div>
+    </div>
+
+    <div class="tool-grid">
+
+      <!-- TOOL 1: DIAGNOSTIC -->
+      <div class="tool-card featured">
+        <div class="featured-ribbon">⭐ FLAGSHIP</div>
+        <div class="card-color-bar" style="background:linear-gradient(90deg,#1e3a8a,#3b82f6)"></div>
+        <div class="card-body">
+          <div class="card-icon" style="background:#eff6ff; color:#2563eb;">📊</div>
+          <div class="card-meta">
+            <span class="meta-badge" style="background:#eff6ff;color:#1e40af">B2B</span>
+            <span class="meta-badge" style="background:#f0fdf4;color:#166534">NEET</span>
+            <span class="meta-badge" style="background:#fef3c7;color:#92400e">All Subjects</span>
+          </div>
+          <div class="card-title">NEET Diagnostic + Prescription Tool</div>
+          <div class="card-desc">Upload question paper → upload student answers → get full diagnostic report with chapter-wise error analysis, level classification (Foundation / Application / Refinement), 7-day action plan, and parent-ready shareable card.</div>
+          <div class="card-tags">
+            <span class="tag">Sub-topic Analysis</span>
+            <span class="tag">AI Prescription</span>
+            <span class="tag">Hinglish Mode</span>
+            <span class="tag">Parent Card</span>
+          </div>
+          <div class="card-footer">
+            <button onclick="openTool('index.html')" class="card-btn card-btn-primary">Open Tool →</button>
+            <div class="card-status"><div class="dot-live"></div> Live</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TOOL 2: DIFFICULTY ANALYSER -->
+      <div class="tool-card">
+        <div class="featured-ribbon" style="background:#9333ea;">LIVE</div>
+        <div class="card-color-bar" style="background:linear-gradient(90deg,#7e22ce,#a855f7)"></div>
+        <div class="card-body">
+          <div class="card-icon" style="background:#faf5ff; color:#9333ea;">🎯</div>
+          <div class="card-meta">
+            <span class="meta-badge" style="background:#eff6ff;color:#1e40af">B2B</span>
+            <span class="meta-badge" style="background:#faf5ff;color:#7e22ce">Quality Control</span>
+          </div>
+          <div class="card-title">Test Paper Difficulty Analyser</div>
+          <div class="card-desc">Upload any test paper and get instant difficulty audit. Chapter-wise distribution, paper quality score, Easy/Medium/Hard balance, and design recommendations before printing.</div>
+          <div class="card-tags">
+            <span class="tag">Paper Design</span>
+            <span class="tag">NEET Rubric</span>
+            <span class="tag">Quality Score</span>
+          </div>
+          <div class="card-footer">
+            <button onclick="openTool('difficulty-analyser.html')" class="card-btn card-btn-primary">Open Tool →</button>
+            <div class="card-status"><div class="dot-live"></div> Live</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TOOL 3: DROPOUT TRACKER -->
+      <div class="tool-card">
+        <div class="featured-ribbon" style="background:#ea580c;">LIVE</div>
+        <div class="card-color-bar" style="background:linear-gradient(90deg,#c2410c,#f97316)"></div>
+        <div class="card-body">
+          <div class="card-icon" style="background:#fff7ed; color:#ea580c;">⚠️</div>
+          <div class="card-meta">
+            <span class="meta-badge" style="background:#eff6ff;color:#1e40af">B2B</span>
+            <span class="meta-badge" style="background:#fff7ed;color:#c2410c">Revenue Protection</span>
+          </div>
+          <div class="card-title">Student Dropout Risk Tracker</div>
+          <div class="card-desc">Flag at-risk students before they leave. Upload attendance and test scores, get a risk score per student, early warning alerts, and auto-generated intervention plans.</div>
+          <div class="card-tags">
+            <span class="tag">Dropout Prediction</span>
+            <span class="tag">Risk Scoring</span>
+            <span class="tag">Intervention Plans</span>
+          </div>
+          <div class="card-footer">
+            <button onclick="openTool('dropout-tracker.html')" class="card-btn card-btn-primary">Open Tool →</button>
+            <div class="card-status"><div class="dot-live"></div> Live</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PLANNED: CBT Platform -->
+      <div class="tool-card coming-soon">
+        <div class="card-color-bar" style="background:linear-gradient(90deg,#0f766e,#14b8a6)"></div>
+        <div class="card-body">
+          <div class="card-icon" style="background:#f0fdfa; color:#0f766e;">💻</div>
+          <div class="card-meta">
+            <span class="meta-badge" style="background:#f0fdf4;color:#15803d">B2B</span>
+            <span class="meta-badge" style="background:#f8fafc;color:#64748b">Coming Soon</span>
+          </div>
+          <div class="card-title">CBT Test Platform</div>
+          <div class="card-desc">Students give mock tests directly on BioRivet. Answers auto-captured, analysis instant. Built for NEET's shift to Computer Based Testing.</div>
+          <div class="card-tags">
+            <span class="tag">CBT Ready</span>
+            <span class="tag">Auto Analysis</span>
+          </div>
+          <div class="card-footer">
+            <button class="card-btn card-btn-locked" disabled>Coming Soon</button>
+            <div class="card-status"><div class="dot-plan"></div> In Development</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PLANNED: Progress Tracker -->
+      <div class="tool-card coming-soon">
+        <div class="card-color-bar" style="background:linear-gradient(90deg,#b91c1c,#ef4444)"></div>
+        <div class="card-body">
+          <div class="card-icon" style="background:#fef2f2; color:#b91c1c;">📈</div>
+          <div class="card-meta">
+            <span class="meta-badge" style="background:#eff6ff;color:#1e40af">B2B</span>
+            <span class="meta-badge" style="background:#f8fafc;color:#64748b">Coming Soon</span>
+          </div>
+          <div class="card-title">Student Progress Tracker</div>
+          <div class="card-desc">Track each student's improvement across multiple tests. Foundation in April → Application in June. Retention story for parents.</div>
+          <div class="card-tags">
+            <span class="tag">Multi-Test</span>
+            <span class="tag">Progress Charts</span>
+          </div>
+          <div class="card-footer">
+            <button class="card-btn card-btn-locked" disabled>Coming Soon</button>
+            <div class="card-status"><div class="dot-plan"></div> Planned</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── 3 REPORT MODES ── -->
+  <div id="modes" style="margin-bottom: 72px;">
+    <div class="section-header">
+      <div class="section-title">📋 3 Report Modes — For Every Situation</div>
+      <div class="section-sub">Choose the right depth of analysis for your institute's needs.</div>
+    </div>
+
+    <div class="modes-grid">
+      <!-- MODE 1 -->
+      <div class="mode-card" style="border-top: 4px solid #10b981;">
+        <div class="mode-number">1</div>
+        <div class="mode-badge" style="background:#f0fdf4; color:#15803d;">Free — No AI</div>
+        <h3>Instant Report</h3>
+        <p>Teacher-voice action plan generated in seconds — no API call, no cost, works offline. Short, clean, easy to read.</p>
+        <ul class="mode-features">
+          <li>Chapter-wise accuracy breakdown</li>
+          <li>Foundation / Application / Refinement level</li>
+          <li>Friendly Hinglish guidance (no AI)</li>
+          <li>7-day structured homework plan</li>
+          <li>Shareable parent card</li>
+        </ul>
+      </div>
+
+      <!-- MODE 2 -->
+      <div class="mode-card" style="border-top: 4px solid #3b82f6;">
+        <div class="mode-number">2</div>
+        <div class="mode-badge" style="background:#eff6ff; color:#1e40af;">AI — Hinglish</div>
+        <h3>Deep Forensic (Rahul Sir)</h3>
+        <p>AI-powered prescription in warm Hinglish — like your best teacher sitting with the student after every test.</p>
+        <ul class="mode-features">
+          <li>Root cause analysis per student</li>
+          <li>Sub-topic level error classification</li>
+          <li>Exact book + chapter + page guidance</li>
+          <li>Why each day's task is assigned (justified)</li>
+          <li>What to STOP doing immediately</li>
+          <li>Parent checkpoint in simple language</li>
+        </ul>
+      </div>
+
+      <!-- MODE 3 -->
+      <div class="mode-card" style="border-top: 4px solid #7c3aed;">
+        <div class="mode-number">3</div>
+        <div class="mode-badge" style="background:#faf5ff; color:#6d28d9;">AI — English</div>
+        <h3>Deep Forensic (English)</h3>
+        <p>Same forensic depth as Mode 2, written in formal English. Ideal for English-medium institutes and direct parent sharing.</p>
+        <ul class="mode-features">
+          <li>All Mode 2 features in English</li>
+          <li>Professional tone — shareable with parents directly</li>
+          <li>Suitable for urban / English-medium institutes</li>
+          <li>Justified reading sequence (Step 1 → Step 2 → Step 3)</li>
+          <li>Success signal — how student knows plan worked</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── HOW IT WORKS ── -->
+  <div id="how-it-works" style="margin-bottom: 72px;">
+    <div class="section-header">
+      <div class="section-title">🔄 How It Works — 3 Steps</div>
+      <div class="section-sub">From test paper to personalized student prescription in under 3 minutes.</div>
+    </div>
+
+    <div class="roadmap">
+      <div class="rm-item">
+        <div class="rm-circle rm-active" style="background:#3b82f6;">1</div>
+        <div class="rm-label">Upload Paper</div>
+        <div class="rm-sub">Question paper PDF + answer key + student answers</div>
+      </div>
+      <div class="rm-item">
+        <div class="rm-circle rm-active" style="background:#7c3aed;">2</div>
+        <div class="rm-label">AI Analyses</div>
+        <div class="rm-sub">Chapter mapping, error classification, level assignment</div>
+      </div>
+      <div class="rm-item">
+        <div class="rm-circle rm-active" style="background:#10b981;">3</div>
+        <div class="rm-label">Report Ready</div>
+        <div class="rm-sub">Personalized prescription + shareable parent card generated</div>
+      </div>
+    </div>
+
+    <!-- Visual showcase -->
+    <div class="showcase-row">
+      <div class="showcase-info">
+        <div class="sc-badge">Flagship — Diagnostic Tool</div>
+        <h3 class="sc-title">Customized Roadmaps, Not Ranks</h3>
+        <p class="sc-desc">Turn mock test failure into a 7-day tactical prescription for success. Every student gets a plan specific to their exact mistake pattern — not a generic "revise NCERT" instruction.</p>
+        <div class="sc-features">
+          <ul>
+            <li>✓ Sub-topic level weakness identified (not just chapter)</li>
+            <li>✓ Exact book + chapter + section recommended</li>
+            <li>✓ Reading order justified — student knows WHY step 2 comes after step 1</li>
+            <li>✓ Self-check included — student can verify mastery without teacher</li>
+          </ul>
+        </div>
+      </div>
+      <div class="showcase-visual">
+        <div class="showcase-panel">
+          <div style="font-size:13px; font-weight:700; color:var(--navy); margin-bottom:16px; text-transform:uppercase; letter-spacing:0.5px;">Sample — Student Report Card</div>
+          <div style="background:var(--navy); color:white; border-radius:10px; padding:20px; margin-bottom:12px;">
+            <div style="font-size:12px; opacity:0.6; margin-bottom:4px;">STUDENT</div>
+            <div style="font-size:18px; font-weight:800; margin-bottom:8px;">Aarav Sharma</div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+              <div style="background:rgba(255,255,255,0.1); padding:8px 14px; border-radius:8px; font-size:13px;"><span style="font-weight:700;">312</span><span style="opacity:0.6;">/720</span></div>
+              <div style="background:#fef2f2; color:#b91c1c; padding:8px 14px; border-radius:8px; font-size:12px; font-weight:700;">Foundation Level</div>
+            </div>
+          </div>
+          <div style="background:#fef3c7; border-radius:8px; padding:14px; margin-bottom:10px;">
+            <div style="font-size:11px; font-weight:700; color:#92400e; text-transform:uppercase; margin-bottom:6px;">🔴 Tonight's Task</div>
+            <div style="font-size:13px; color:var(--navy);">Chemical Bonding — NCERT Class XI Ch 4, Section 4.3. Table banao — hybridization types + examples. 30 min.</div>
+          </div>
+          <div style="background:#f0fdf4; border-radius:8px; padding:14px;">
+            <div style="font-size:11px; font-weight:700; color:#15803d; text-transform:uppercase; margin-bottom:6px;">📱 Parent Checkpoint</div>
+            <div style="font-size:13px; color:var(--navy);">"Aaj raat bache se poochiye: hybridization ke 3 types bata sako?"</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="showcase-row">
+      <div class="showcase-info">
+        <div class="sc-badge" style="background:#faf5ff; color:#7e22ce;">Faculty Amplification</div>
+        <h3 class="sc-title">Empower Teachers With Zero Extra Burnout</h3>
+        <p class="sc-desc">Your teacher uploads the test paper once. BioRivet generates 30 individual reports automatically. The teacher can now focus on teaching — not paperwork.</p>
+        <div class="sc-features">
+          <ul>
+            <li>✓ Batch-level insights — which chapter is failing across ALL students</li>
+            <li>✓ No manual analysis, no spreadsheet work</li>
+            <li>✓ Teacher gets macro view; student gets micro plan</li>
+            <li>✓ Reports ready before next class</li>
+          </ul>
+        </div>
+      </div>
+      <div class="showcase-visual">
+        <div class="showcase-panel">
+          <div style="font-size:13px; font-weight:700; color:var(--navy); margin-bottom:16px; text-transform:uppercase; letter-spacing:0.5px;">Batch Intelligence View</div>
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div style="font-size:18px;">🔴</div>
+              <div>
+                <div style="font-size:13px; font-weight:700; color:var(--navy);">Biggest Batch Gap</div>
+                <div style="font-size:12px; color:var(--muted);">"Chemical Bonding" — 68% of students got Q12-Q14 wrong</div>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div style="font-size:18px;">🟢</div>
+              <div>
+                <div style="font-size:13px; font-weight:700; color:var(--navy);">Strongest Area</div>
+                <div style="font-size:12px; color:var(--muted);">"Digestion" — 91% accuracy batch-wide</div>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div style="font-size:18px;">⚠️</div>
+              <div>
+                <div style="font-size:13px; font-weight:700; color:var(--navy);">Dominant Error Type</div>
+                <div style="font-size:12px; color:var(--muted);">Assertion-Reason format causing 40% of wrong answers</div>
+              </div>
+            </div>
+            <div style="margin-top:8px; padding:12px; background:#eff6ff; border-radius:8px; font-size:13px; color:#1e40af; font-weight:600;">
+              💡 Suggested: Conduct a 20-min Assertion-Reason workshop next class
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── BENEFITS ── -->
+  <div id="benefits">
+    <div class="section-header">
+      <div class="section-title">💎 Why Institute Owners Choose BioRivet</div>
+      <div class="section-sub">Built by a NEET teacher who lived this problem. Every feature solves a real coaching centre pain.</div>
+    </div>
+
+    <div class="benefits-grid">
+      <div class="benefit-card">
+        <div class="benefit-icon">🎯</div>
+        <h4>Sub-Topic Precision</h4>
+        <p>Not just "Chemistry weak" — BioRivet identifies "Hybridization in Chemical Bonding" as the gap. Teachers know exactly what to revise next class.</p>
+      </div>
+      <div class="benefit-card">
+        <div class="benefit-icon">💬</div>
+        <h4>Parent Retention Tool</h4>
+        <p>Send parents a personalized weekly report card. They see their child is understood individually — not lost in a batch of 150. Churn drops.</p>
+      </div>
+      <div class="benefit-card">
+        <div class="benefit-icon">⚡</div>
+        <h4>3 Minutes, Not 3 Hours</h4>
+        <p>A teacher manually analysing 30 students takes 2-3 hours. BioRivet does it in 3 minutes. Teacher spends time teaching, not marking.</p>
+      </div>
+      <div class="benefit-card">
+        <div class="benefit-icon">📚</div>
+        <h4>Smart Book Guidance</h4>
+        <p>Not just "revise NCERT" — BioRivet prescribes exact books (HC Verma Ch 38, MS Chouhan, N Avasthi) mapped to the specific mistake.</p>
+      </div>
+      <div class="benefit-card">
+        <div class="benefit-icon">🔒</div>
+        <h4>Institute-Level Security</h4>
+        <p>Each institute gets a unique code. Reports are isolated. No data mixing between institutes. Your student data stays yours.</p>
+      </div>
+      <div class="benefit-card">
+        <div class="benefit-icon">🌐</div>
+        <h4>No App, No Setup</h4>
+        <p>100% web-based. Works on any phone or laptop. No software to install. No IT team needed. Open the link and start.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CTA ── -->
+  <div class="cta-banner">
+    <h2>Ready to Give Every Student 1-on-1 Attention?</h2>
+    <p>Book a free 10-minute demo. We'll process one of your real test papers live — you see the output before committing anything.</p>
+    <div class="hero-btns">
+      <a class="hero-btn btn-primary" href="mailto:obs.biofac@gmail.com?subject=BioRivet Demo Request">Book Free Demo →</a>
+      <a class="hero-btn btn-outline" href="#tools">Explore Tools</a>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- INSTITUTE LOGIN MODAL -->
+<div id="login-modal" class="modal-overlay" style="display:none;">
+  <div class="modal-content">
+    <div class="modal-header">🔒 Institute Login</div>
+    <div class="modal-sub">Enter your institute code and password provided by BioRivet.</div>
+    <input type="text" id="login-code" class="modal-input" placeholder="Institute Code (e.g. BRILLI2024)" autocomplete="off">
+    <input type="password" id="login-key" class="modal-input" placeholder="Password">
+    <div id="login-err" class="modal-error">Incorrect credentials. Please try again.</div>
+    <div class="modal-btns">
+      <button class="modal-btn modal-btn-cancel" onclick="document.getElementById('login-modal').style.display='none'">Cancel</button>
+      <button class="modal-btn modal-btn-submit" onclick="checkLogin()">Unlock Tools</button>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <strong>BioRivet</strong> &nbsp;·&nbsp; Know More. Fear Less. &nbsp;·&nbsp; biorivet.com<br>
+  <span style="font-size:12px; margin-top:8px; display:block;">Diagnostic Intelligence for NEET Coaching Institutes · Built in India 🇮🇳</span>
+</div>
+
+<script>
+let pendingTool = '';
+
+function showLoginModal() {
+  document.getElementById('login-modal').style.display = 'flex';
+  document.getElementById('login-code').focus();
+}
+
+function openTool(url) {
+  if (localStorage.getItem('biorivet_auth') === 'true') {
+    window.location.href = url;
+  } else {
+    pendingTool = url;
+    showLoginModal();
+  }
+}
+
+async function checkLogin() {
+  const code = document.getElementById('login-code').value.trim();
+  const key  = document.getElementById('login-key').value.trim();
+  const errEl = document.getElementById('login-err');
+  errEl.style.display = 'none';
+
+  if (!code || !key) {
+    errEl.textContent = 'Please enter both institute code and password.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  // Try backend auth first
+  try {
+    const res = await fetch('/api/institute/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ instituteCode: code, password: key })
+    });
+    const data = await res.json();
+    if (data.success) {
+      localStorage.setItem('biorivet_auth', 'true');
+      localStorage.setItem('biorivet_institute', JSON.stringify(data.institute));
+      document.getElementById('login-modal').style.display = 'none';
+      if (pendingTool) window.location.href = pendingTool;
+      return;
+    }
+  } catch (e) {
+    // Network error — fall through to legacy check below
+  }
+
+  // Legacy fallback (remove once all institutes are in Supabase)
+  if (key === 'biorivet2026') {
+    localStorage.setItem('biorivet_auth', 'true');
+    document.getElementById('login-modal').style.display = 'none';
+    if (pendingTool) window.location.href = pendingTool;
+    return;
+  }
+
+  errEl.textContent = 'Incorrect credentials. Please try again.';
+  errEl.style.display = 'block';
+}
+
+document.addEventListener('keypress', function(e) {
+  if (e.key === 'Enter' && document.getElementById('login-modal').style.display === 'flex') checkLogin();
+});
+
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', function(e) {
+    const target = document.querySelector(this.getAttribute('href'));
+    if (target) { e.preventDefault(); target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  });
+});
+</script>
+</body>
+</html>

@@ -1660,19 +1660,12 @@ ${errAdvice}${examStrategyNote}
           <div style="font-size:11px;font-weight:700;color:#1F3864;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Personalised Action Plan</div>
         </div>
         <div id="action-plan-container-${gIdx}">
-          ${s.aiReport ? renderAIPrescriptionHTML(s.aiReport) : `
-            <div style="text-align:center; padding: 28px 20px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #bbf7d0; border-radius: 12px;" id="ai-cta-container-${gIdx}">
+          ${s.aiReport ? renderAIPrescriptionHTML(s.aiReport, gIdx) : `
+            <div style="padding: 24px 20px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #bbf7d0; border-radius: 12px; text-align:center;" id="ai-cta-container-${gIdx}">
               <div style="font-size:22px; margin-bottom:8px;">⏳</div>
               <p style="font-size: 13px; font-weight: 700; color: #166534; margin-bottom: 4px;">Generating Friendly Teacher Prescription…</p>
-              <p style="font-size: 11px; color: #15803d;">Mode 1 auto-loading. For deep AI analysis use Modes 2 &amp; 3 below.</p>
-              <div style="display:flex;justify-content:center;gap:8px;margin-top:14px;align-items:center;flex-wrap:wrap;">
-                <span style="font-size:11px;color:#166534;font-weight:600;">Switch to:</span>
-                <button onclick="setPrescriptionMode('mode2', ${gIdx})" id="mode-btn-2-${gIdx}" style="padding:5px 14px;border-radius:20px;border:2px solid #e2e8f0;background:white;color:#64748b;font-size:11px;font-weight:700;cursor:pointer;">Hinglish Deep Forensic</button>
-                <button onclick="setPrescriptionMode('mode3', ${gIdx})" id="mode-btn-3-${gIdx}" style="padding:5px 14px;border-radius:20px;border:2px solid #e2e8f0;background:white;color:#64748b;font-size:11px;font-weight:700;cursor:pointer;">English Deep Forensic</button>
-              </div>
-              <button class="btn btn-green" onclick="event.stopPropagation(); triggerAIPrescription(${gIdx})" id="ai-btn-${gIdx}" style="display:none; margin-top:12px; padding: 8px 16px; font-weight: 600; border-radius: 6px; border: none; background: #10b981; color: white; cursor: pointer;">
-                ✨ Generate AI Prescription
-              </button>
+              <p style="font-size: 11px; color: #15803d; margin-bottom:0;">Auto-loading Mode 1. Switch below for deep AI analysis.</p>
+              ${renderModeSwitcherHTML(gIdx, 'mode1', false, '')}
             </div>
           `}
         </div>
@@ -1727,31 +1720,34 @@ function toggleS(i) {
   if (d.classList.contains('open')) {
     const s = RPT && RPT.studentReports && RPT.studentReports[i];
     if (s && !s.aiReport) {
+      // Set mode1 as default only if user hasn't already picked something else for this row
+      const currentMode = window.BIORIVET_PRESCRIPTION_MODE || 'mode1';
       window.BIORIVET_PRESCRIPTION_MODE = 'mode1';
+
+      // Capture the mode at the time auto-gen starts — if user switches mid-load, abort render
+      const autoMode = 'mode1';
+
       triggerAIPrescriptionSilent(i).then(() => {
+        // Only render if user hasn't switched to a different mode while loading
+        if (window.BIORIVET_PRESCRIPTION_MODE !== autoMode) return;
         const container = document.getElementById('action-plan-container-' + i);
         if (container && s.aiReport) {
-          container.innerHTML = renderAIPrescriptionHTML(s.aiReport);
+          container.innerHTML = renderAIPrescriptionHTML(s.aiReport, i);
         }
       }).catch(err => {
         console.error('Mode 1 auto-generate error:', err);
-        // On failure, show manual buttons
         const ctaContainer = document.getElementById('ai-cta-container-' + i);
         if (ctaContainer) {
-          ctaContainer.innerHTML = '<p style="font-size:13px;font-weight:700;color:#b91c1c;margin-bottom:8px;">⚠ Auto-generation failed. Please try manually.</p>' +
-            '<div style="display:flex;justify-content:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">' +
-            '<button onclick="setPrescriptionMode(\'mode1\',' + i + ')" id="mode-btn-1-' + i + '" style="padding:5px 14px;border-radius:20px;border:2px solid #10b981;background:#10b981;color:white;font-size:11px;font-weight:700;cursor:pointer;">Friendly Teacher</button>' +
-            '<button onclick="setPrescriptionMode(\'mode2\',' + i + ')" id="mode-btn-2-' + i + '" style="padding:5px 14px;border-radius:20px;border:2px solid #e2e8f0;background:white;color:#64748b;font-size:11px;font-weight:700;cursor:pointer;">Hinglish Deep Forensic</button>' +
-            '<button onclick="setPrescriptionMode(\'mode3\',' + i + ')" id="mode-btn-3-' + i + '" style="padding:5px 14px;border-radius:20px;border:2px solid #e2e8f0;background:white;color:#64748b;font-size:11px;font-weight:700;cursor:pointer;">English Deep Forensic</button>' +
-            '</div>' +
-            '<button class="btn btn-green" onclick="event.stopPropagation();triggerAIPrescription(' + i + ')" id="ai-btn-' + i + '" style="padding:8px 16px;font-weight:600;border-radius:6px;border:none;background:#10b981;color:white;cursor:pointer;">✨ Generate AI Prescription</button>';
+          ctaContainer.innerHTML = renderModeSwitcherHTML(i, 'mode1', true, '⚠ Auto-generation failed. Please try manually.');
         }
       });
     }
   }
 }
 
-function renderAIPrescriptionHTML(ai) {
+function renderAIPrescriptionHTML(ai, gIdx) {
+  // gIdx may be undefined when called from DOC export — guard gracefully
+  const idx = (gIdx !== undefined && gIdx !== null) ? gIdx : null;
   const conceptual = ai.errorAnalysis?.conceptualCount || 0;
   const application = ai.errorAnalysis?.applicationCount || 0;
   const behavioral = ai.errorAnalysis?.behavioralCount || 0;
@@ -1918,43 +1914,90 @@ function renderAIPrescriptionHTML(ai) {
         </div>
       </div>
 
+      <!-- Persistent Mode Switcher — always visible after any mode renders -->
+      ${idx !== null ? renderModeSwitcherHTML(idx, isMode1 ? 'mode1' : (ai._mode || 'mode2'), true, '') : ''}
+
     </div>
   `;
+}
+
+// ── MODE SWITCHER HTML HELPER ─────────────────────────────────────────
+// Renders the persistent 3-mode selector bar, used both in loading state and after render
+function renderModeSwitcherHTML(gIdx, activeMode, showGenerateBtn, errorMsg) {
+  const btnStyle = (mode) => {
+    const active = mode === activeMode;
+    return `padding:6px 14px;border-radius:20px;border:2px solid ${active?'#10b981':'#e2e8f0'};background:${active?'#10b981':'white'};color:${active?'white':'#64748b'};font-size:11px;font-weight:700;cursor:pointer;transition:all 0.2s ease;`;
+  };
+  const labels = { mode1: '⚡ Friendly Teacher', mode2: '🔬 Hinglish Deep Forensic', mode3: '📋 English Deep Forensic' };
+  return `
+    <div style="margin-top:16px; padding:14px 16px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; text-align:center;">
+      <div style="font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;">🔄 Switch Prescription Mode</div>
+      ${errorMsg ? `<p style="font-size:12px;font-weight:600;color:#b91c1c;margin-bottom:10px;">${errorMsg}</p>` : ''}
+      <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:${showGenerateBtn?'12px':'0'};">
+        <button onclick="setPrescriptionMode('mode1',${gIdx})" id="mode-btn-1-${gIdx}" style="${btnStyle('mode1')}">⚡ Friendly Teacher</button>
+        <button onclick="setPrescriptionMode('mode2',${gIdx})" id="mode-btn-2-${gIdx}" style="${btnStyle('mode2')}">🔬 Hinglish Deep Forensic</button>
+        <button onclick="setPrescriptionMode('mode3',${gIdx})" id="mode-btn-3-${gIdx}" style="${btnStyle('mode3')}">📋 English Deep Forensic</button>
+      </div>
+      ${showGenerateBtn ? `<button onclick="event.stopPropagation();triggerAIPrescription(${gIdx})" id="ai-btn-${gIdx}" style="padding:9px 22px;font-weight:700;border-radius:8px;border:none;background:linear-gradient(135deg,#10b981,#059669);color:white;cursor:pointer;font-size:13px;box-shadow:0 4px 10px rgba(16,185,129,0.25);">✨ Generate Prescription</button>` : ''}
+    </div>`;
 }
 
 // ── PRESCRIPTION ENGINE MODE TOGGLE ─────────────────────────────────
 window.BIORIVET_PRESCRIPTION_MODE = 'mode1'; // default: Friendly Teacher!
 function setPrescriptionMode(mode, gIdx) {
   window.BIORIVET_PRESCRIPTION_MODE = mode;
-  const btn1 = document.getElementById(`mode-btn-1-${gIdx}`);
-  const btn2 = document.getElementById(`mode-btn-2-${gIdx}`);
-  const btn3 = document.getElementById(`mode-btn-3-${gIdx}`);
-  
-  if (btn2 && btn3) {
-    [btn2, btn3].forEach(b => {
-      b.style.background = 'white';
-      b.style.color = '#64748b';
-      b.style.borderColor = '#e2e8f0';
-    });
-    if (btn1) { btn1.style.background = 'white'; btn1.style.color = '#64748b'; btn1.style.borderColor = '#e2e8f0'; }
-    const activeBtn = mode === 'mode1' ? btn1 : mode === 'mode2' ? btn2 : btn3;
-    if (activeBtn) { activeBtn.style.background = '#10b981'; activeBtn.style.color = 'white'; activeBtn.style.borderColor = '#10b981'; }
-  }
 
-  // If Mode 2 or 3 selected after Mode 1 already rendered, force a fresh generate
-  if (mode !== 'mode1') {
-    const s = RPT && RPT.studentReports && RPT.studentReports[gIdx];
-    if (s && s.aiReport) {
-      // Clear the existing report so the user must re-generate with the new mode
-      s.aiReport = null;
+  // Update button styles if the switcher bar is already visible
+  ['mode1','mode2','mode3'].forEach(m => {
+    const btn = document.getElementById(`mode-btn-${m.slice(-1)}-${gIdx}`);
+    if (btn) {
+      btn.style.background   = m === mode ? '#10b981' : 'white';
+      btn.style.color        = m === mode ? 'white'   : '#64748b';
+      btn.style.borderColor  = m === mode ? '#10b981' : '#e2e8f0';
+    }
+  });
+
+  const s = RPT && RPT.studentReports && RPT.studentReports[gIdx];
+
+  if (mode === 'mode1') {
+    // Mode 1: re-run auto-generate if no report, or re-render existing Mode 1 report
+    if (!s) return;
+    if (s.aiReport && !s.aiReport.actionPlan?.tonightHomework?.whyJustification) {
+      // Already have a Mode 1 report — just re-render (no cost)
       const container = document.getElementById('action-plan-container-' + gIdx);
-      if (container) {
-        container.innerHTML = `<div style="text-align:center;padding:20px;background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%);border:1px solid #bbf7d0;border-radius:12px;" id="ai-cta-container-${gIdx}">
-          <p style="font-size:13px;font-weight:700;color:#166534;margin-bottom:6px;">✨ Generate ${mode === 'mode2' ? 'Hinglish Deep Forensic' : 'English Deep Forensic'} Prescription</p>
-          <p style="font-size:11px;color:#15803d;margin-bottom:12px;">Deep AI analysis will be run for this student.</p>
-          <button class="btn btn-green" onclick="event.stopPropagation();triggerAIPrescription(${gIdx})" id="ai-btn-${gIdx}" style="padding:8px 16px;font-weight:600;border-radius:6px;border:none;background:#10b981;color:white;cursor:pointer;">✨ Generate AI Prescription</button>
-        </div>`;
-      }
+      if (container) container.innerHTML = renderAIPrescriptionHTML(s.aiReport, gIdx);
+      return;
+    }
+    // Need to generate fresh Mode 1
+    s.aiReport = null;
+    const container = document.getElementById('action-plan-container-' + gIdx);
+    if (container) {
+      container.innerHTML = `<div id="ai-cta-container-${gIdx}" style="padding:20px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #bbf7d0;border-radius:12px;text-align:center;">
+        <div style="font-size:20px;margin-bottom:8px;">⏳</div>
+        <p style="font-size:13px;font-weight:700;color:#166534;margin-bottom:4px;">Generating Friendly Teacher Prescription…</p>
+        ${renderModeSwitcherHTML(gIdx, 'mode1', false, '')}
+      </div>`;
+    }
+    triggerAIPrescriptionSilent(gIdx).then(() => {
+      if (window.BIORIVET_PRESCRIPTION_MODE !== 'mode1') return;
+      const c = document.getElementById('action-plan-container-' + gIdx);
+      if (c && s.aiReport) c.innerHTML = renderAIPrescriptionHTML(s.aiReport, gIdx);
+    }).catch(err => {
+      const c = document.getElementById('ai-cta-container-' + gIdx);
+      if (c) c.innerHTML = renderModeSwitcherHTML(gIdx, 'mode1', true, '⚠ Generation failed. Try again.');
+    });
+
+  } else {
+    // Mode 2 or 3: clear any existing report, show generate button
+    if (s) s.aiReport = null;
+    const container = document.getElementById('action-plan-container-' + gIdx);
+    if (container) {
+      const label = mode === 'mode2' ? 'Hinglish Deep Forensic' : 'English Deep Forensic';
+      container.innerHTML = `<div id="ai-cta-container-${gIdx}" style="padding:20px 16px;background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1px solid #bfdbfe;border-radius:12px;text-align:center;">
+        <p style="font-size:13px;font-weight:700;color:#1e40af;margin-bottom:4px;">✨ ${label} — Deep AI Analysis</p>
+        <p style="font-size:11px;color:#3b82f6;margin-bottom:0;">This calls the AI engine and may take 10–20 seconds.</p>
+        ${renderModeSwitcherHTML(gIdx, mode, true, '')}
+      </div>`;
     }
   }
 }
@@ -2025,6 +2068,7 @@ async function triggerAIPrescriptionSilent(index) {
 
   // Save report to state
   s.aiReport = data;
+  s.aiReport._mode = window.BIORIVET_PRESCRIPTION_MODE || 'mode1'; // tag which mode generated this
 
   // Attach student's raw performance snapshot for the shareable card.
   // priorityChapter comes from the AI report itself (server already ranked it) — no client weight map needed.
@@ -2067,7 +2111,7 @@ async function triggerAIPrescriptionSilent(index) {
   // Render AFTER _studentSnapshot is attached so the card button has complete data
   const container = document.getElementById('action-plan-container-' + index);
   if (container) {
-    container.innerHTML = renderAIPrescriptionHTML(s.aiReport);  // use s.aiReport (has _studentSnapshot), not raw data
+    container.innerHTML = renderAIPrescriptionHTML(s.aiReport, index);  // use s.aiReport (has _studentSnapshot), not raw data
   }
 }
 

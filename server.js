@@ -711,6 +711,12 @@ function getBookGuidance(subject, chapter, errorType) {
     return { ncertRole: 'Primary reference', primaryBook: 'NCERT', drillBook: 'PYQ practice', note: '', ncertCoord: null };
 }
 
+// Error difficulty multipliers — Conceptual errors take 3-4 days to fix;
+// Memory errors can be closed in one night. Application is in between.
+// This ensures the hardest-to-fix problems surface at the TOP of the plan,
+// not buried behind quick-win Memory chapters.
+const ERROR_DIFFICULTY = { Conceptual: 1.5, Application: 1.3, Memory: 1.0 };
+
 function getTopPriorityChapters(incorrectQuestions, topN = 4) {
     const chapterMap = {};
     for (const q of incorrectQuestions) {
@@ -723,12 +729,19 @@ function getTopPriorityChapters(incorrectQuestions, topN = 4) {
         chapterMap[key].errorTypes[q.errorType || 'Application'] = (chapterMap[key].errorTypes[q.errorType || 'Application'] || 0) + 1;
         chapterMap[key].questions.push(`Q${q.qno}`);
     }
-    const ranked = Object.values(chapterMap).map(ch => ({
-        ...ch,
-        neetScore: ch.wrong * (NEET_CHAPTER_WEIGHT[ch.chapter] || 1.0),
-        dominantError: Object.entries(ch.errorTypes).sort((a,b) => b[1]-a[1])[0]?.[0] || 'Application',
-        bookGuidance: getBookGuidance(ch.subject, ch.chapter, null)
-    })).sort((a, b) => b.neetScore - a.neetScore);
+    const ranked = Object.values(chapterMap).map(ch => {
+        const dominantError = Object.entries(ch.errorTypes).sort((a,b) => b[1]-a[1])[0]?.[0] || 'Application';
+        const errMultiplier = ERROR_DIFFICULTY[dominantError] || 1.0;
+        // Priority score: wrong count × NEET chapter weight × error remediation difficulty
+        // This correctly surfaces Conceptual/Application gaps over easy-to-fix Memory gaps
+        const neetScore = ch.wrong * (NEET_CHAPTER_WEIGHT[ch.chapter] || 1.0) * errMultiplier;
+        return {
+            ...ch,
+            neetScore,
+            dominantError,
+            bookGuidance: getBookGuidance(ch.subject, ch.chapter, null)
+        };
+    }).sort((a, b) => b.neetScore - a.neetScore);
 
     return { priority: ranked.slice(0, topN), secondary: ranked.slice(topN), totalChapters: ranked.length };
 }
@@ -759,7 +772,14 @@ CRITICAL TEACHING RULES:
 4. selfCheck is mandatory — the student must be able to test themselves WITHOUT looking at notes.
 5. parentCheckpoint must be understandable by a parent with zero science background.
 
-CRITICAL BOOK GUIDANCE — THIS IS THE MOST IMPORTANT RULE:
+SLOT SEQUENCING RULE (non-negotiable):
+- Tonight = Priority Chapter #1, full stop. Never start with any other chapter.
+- Day 2: IF Priority #1's dominant error is Memory (fixable in one night) → advance to Priority #2.
+  IF Priority #1's dominant error is Conceptual or Application → stay on Priority #1 with a DIFFERENT task angle (not re-reading — a different activity: draw mechanism, solve 3 problems, do self-test).
+- Day 3-4: Priority #2 (or #3 if Day 2 already covered #2).
+- Day 5 Mini-Test: Use ONLY the Q numbers pre-specified in the prompt — they are sampled from each addressed chapter. Do NOT substitute different questions.
+- Day 6-7: Priority #3 or #4 + cross-subject speed set.
+
 The "resource" field in each action plan slot MUST follow these subject-specific rules strictly:
 
 BIOLOGY (Botany + Zoology):
@@ -805,41 +825,54 @@ Content revision is secondary. Fix the strategy gap first.\n`;
 // MODE 1 — FRIENDLY TEACHER VOICE (NO AI, ZERO COST)
 // Short, clean, warm Hinglish — no justifications, no deep forensics
 // ═══════════════════════════════════════════════════════════════════════════
-const MODE1_TEMPLATES = {
-    Foundation: {
-        tonight:  (ch, subj) => `Aaj raat sirf ${ch} ke basic concepts padho. NCERT ke diagrams ek baar pencil se trace karo — haath se likhoge toh yaad rahega. 30 minute kaafi hai.`,
-        day2:     (ch, book) => `Kal subah ${book} se ${ch} ke solved examples dekho. Khud solve karne ki koshish karo pehle, phir answer dekho. Galti hua toh woh step underline karo.`,
-        day3:     (topics)  => `Aaj ${(topics.slice(0,2)).join(' aur ')} pe focus karo. Inhi concepts se question aaya tha. Ek page notes banao apne words mein.`,
-        day4_5:   (subj)    => `${subj} ke last 3 saal ke PYQ dekho — sirf inhi chapters se. Pattern samjho, ratta mat maaro.`,
-        day6_7:   (ch)      => `Week ke aakhir mein ek mini revision karo — ${ch} ke 10 questions time karke solve karo. Improvement dikhega.`,
-        selfCheck:(ch)      => `Book band karo. Ek blank page pe ${ch} ke 5 key points likho bina dekhte.`,
-        mentor:   (ch)      => `Foundation strong toh NEET strong — ek din ek chapter.`
-    },
-    Application: {
-        tonight:  (ch, subj) => `Aaj raat ${ch} ke jo questions galat hue, unhe dobara karo bina copy dekhe. 20-25 minute.`,
-        day2:     (ch, book) => `${book} se ${ch} ke medium difficulty questions karo kal. Easy wale skip karo — tumhara level usse upar hai.`,
-        day3:     (topics)  => `${topics[0] || ch} pe aaj thoda zyada time do — yahi tumhara weakest sub-topic hai is chapter mein.`,
-        day4_5:   (subj)    => `${subj} ke mixed practice set karo — multiple chapters ek saath. Real exam jaisa feel aayega.`,
-        day6_7:   (ch)      => `${ch} ka ek full mock section karo — timed. Phir khud analyse karo kahan time waste hua.`,
-        selfCheck:(ch)      => `${ch} ka ek unseen problem bina formula sheet ke solve karo — 5 minute timer lagao.`,
-        mentor:   (ch)      => `Tu jaanta hai ye — ab sirf practise ka game hai.`
-    },
-    Refinement: {
-        tonight:  (ch, subj) => `Tumhara ${ch} strong hai — aaj raat advanced problems karo. Tricky wale, jahan concept twist hota hai.`,
-        day2:     (ch, book) => `${book} ke highest difficulty questions lo ${ch} se. Inhe solve karna tumhare liye challenge hona chahiye.`,
-        day3:     (topics)  => topics.length > 0 ? `Ek chhota sa gap hai — ${topics[0]}. Sirf ise polish karo aaj.` : `Aaj cross-chapter questions karo — yahi NEET mein aata hai.`,
-        day4_5:   (subj)    => `${subj} mein tumhara score achha hai. Aaj speed pe kaam karo — same questions, kam time.`,
-        day6_7:   (ch)      => `${ch} done. Ab doosre weak subjects pe shift karo — inhe carry forward mat karo.`,
-        selfCheck:(ch)      => `${ch} ke 3 hardest questions bina kisi help ke 10 minute mein solve karo.`,
-        mentor:   (ch)      => `Tera knowledge problem nahi hai — habits aur speed fix karne hain.`
+// ── PER-ERROR-TYPE TASK SELECTOR ────────────────────────────────────────────
+// Each chapter has a dominantError. The task instruction must differ based on
+// WHY the student got it wrong, not just their global level.
+// Memory error → active recall (read, close, write from memory)
+// Conceptual error → derive/draw mechanism from scratch
+// Application error → redo exact wrong questions step-by-step in writing
+function taskForError(dominantError, chapter, subject, subConcepts, incorrectQnos, studentLevel, book) {
+    const topSubs = (subConcepts || []).slice(0, 2);
+    const subStr = topSubs.length > 0 ? ` (especially ${topSubs.join(' aur ')})` : '';
+    const qStr = incorrectQnos && incorrectQnos.length > 0
+        ? ` — ${incorrectQnos.slice(0, 3).join(', ')} ke questions specifically`
+        : '';
+
+    if (dominantError === 'Memory') {
+        return `Aaj raat ${chapter}${subStr} ka NCERT section read karo. Phir book band karo aur ek blank page pe in 5 points ko likho bina dekhte hue: (1) definition, (2) example, (3) exception agar hai, (4) diagram label, (5) NEET mein kis angle se aata hai. Agar likh nahi paye toh phir padho — re-read count nahi hota, recall count hota hai. 30 minutes.`;
     }
-};
+    if (dominantError === 'Conceptual') {
+        return `${chapter}${subStr} mein concept clear nahi hai${qStr}. Aaj raat sirf mechanism pe focus karo — ek blank page lo aur ${chapter} ka flowchart ya diagram BINA NCERT DEKHE draw karo. Pehle try karo, galti aayegi — phir NCERT se check karo exact jagah kahan toot gaya. Woh specific gap hi tera enemy hai. 35 minutes. Re-read mat karo — khud explain karo.`;
+    }
+    // Application
+    return `${chapter}${qStr} ke questions tujhe theory pata thi lekin application mein toot gaya. Aaj raat wahi exact wrong questions nikalo${subStr ? ` (${topSubs.join(', ')} se related)` : ''}. Har ek question ke liye — step-by-step solution likho, aur specifically woh step identify karo jahan tune galti ki. Ek cheez — "kya karna tha" aur "tune kya kiya" — ye difference likh. ${book} se 2 similar problems aur karo uske baad. 25 minutes.`;
+}
+
+
 
 function generateMode1Report(studentData, testMetadata, studentLevel, levelRationale, priorityChapters, errBreakdown) {
     const name      = studentData.name || 'beta';
     const perf      = studentData.performance || {};
     const incorrect = testMetadata.incorrectQuestions || [];
-    const tmpl      = MODE1_TEMPLATES[studentLevel] || MODE1_TEMPLATES['Application'];
+    // studentLevel is global. Build per-subject level map for better calibration.
+    // Subjects where the student has more Recall errors than others → Foundation for that subject.
+    // This avoids prescribing "NCERT active recall" to someone who's strong in Biology but weak in Physics.
+    const subjectErrorProfile = {};
+    incorrect.forEach(q => {
+        const sub = q.subject || 'Unknown';
+        if (!subjectErrorProfile[sub]) subjectErrorProfile[sub] = { Memory: 0, Conceptual: 0, Application: 0, total: 0 };
+        subjectErrorProfile[sub][q.errorType || 'Application']++;
+        subjectErrorProfile[sub].total++;
+    });
+    function subjectLevel(subject) {
+        const p = subjectErrorProfile[subject];
+        if (!p || p.total === 0) return studentLevel;
+        // Mostly Memory errors → Foundation for this subject
+        if (p.Memory / p.total > 0.5) return 'Foundation';
+        // Mostly Application → Refinement-adjacent
+        if (p.Application / p.total > 0.5) return 'Refinement';
+        return 'Application';
+    }
 
     // ── Helper: get book reference for a given subject ────────────────
     function bookForSubject(subject, chapter) {
@@ -851,9 +884,8 @@ function generateMode1Report(studentData, testMetadata, studentLevel, levelRatio
     }
 
     // ── Slot assignment: spread across top 4 priority chapters ────────
-    // p0 = highest priority, p1 = second, p2 = third, p3 = fourth (or fallback to p0/p1)
     const p  = priorityChapters; // array of { chapter, subject, wrong, subConcepts, dominantError }
-    const p0 = p[0] || { chapter: 'Revision', subject: 'Biology', subConcepts: [] };
+    const p0 = p[0] || { chapter: 'Revision', subject: 'Biology', subConcepts: [], dominantError: 'Application', wrong: 0, questions: [] };
     const p1 = p[1] || p0;
     const p2 = p[2] || p1;
     const p3 = p[3] || p2;
@@ -863,14 +895,48 @@ function generateMode1Report(studentData, testMetadata, studentLevel, levelRatio
     const book2 = bookForSubject(p2.subject, p2.chapter);
     const book3 = bookForSubject(p3.subject, p3.chapter);
 
-    const topics0 = (p0.subConcepts || []).slice(0, 3);
-    const topics1 = (p1.subConcepts || []).slice(0, 2);
+    // ── Fix 2: taskType driven by dominantError, not global studentLevel ──
+    function taskTypeForError(err) {
+        if (err === 'Memory') return 'NCERT Active Recall';
+        if (err === 'Conceptual') return 'Mechanism Flowchart';
+        return 'Error Correction';
+    }
 
-    // Self-check variations per slot
-    const selfCheck0 = `${p0.chapter} ka ek unseen problem bina formula sheet ke solve karo — 5 minute timer lagao.`;
-    const selfCheck1 = `${p1.chapter} ke 3 key points bina book ke likhkar dekho.`;
-    const selfCheck2 = topics1.length > 0
-        ? `${topics1[0]} ko ek example se explain karo — bina notes ke.`
+    // ── Fix 3: Day 5 mini-test samples across ALL addressed chapters ──────
+    // Pull 1–2 wrong questions from each priority chapter addressed in Days 1–4
+    function miniTestQuestions() {
+        const priorityChaps = [p0, p1, p2, p3];
+        const selected = [];
+        const chapsSeen = new Set();
+        // First pass: get 1-2 from each priority chapter
+        priorityChaps.forEach(ch => {
+            if (chapsSeen.has(ch.chapter)) return;
+            chapsSeen.add(ch.chapter);
+            const chapQs = incorrect.filter(q => q.chapter === ch.chapter);
+            chapQs.slice(0, 2).forEach(q => selected.push(q.qno));
+        });
+        // If still under 5, fill from remaining wrong questions
+        const fallback = incorrect.filter(q => !selected.includes(q.qno));
+        fallback.forEach(q => { if (selected.length < 6) selected.push(q.qno); });
+        return selected.slice(0, 6);
+    }
+    const miniTestQnos = miniTestQuestions();
+
+    // Self-check varies per chapter's dominantError
+    const selfCheck0 = p0.dominantError === 'Memory'
+        ? `${p0.chapter} ki NCERT book band karo. Blank page pe 5 key points likho bina dekhte — agar 3 se kam likh paye toh reading dobara karo.`
+        : p0.dominantError === 'Conceptual'
+        ? `${p0.chapter} ka flowchart / mechanism BINA NCERT dekhe draw karo. Agar ek bhi step miss hua toh concept clear nahi hua.`
+        : `${p0.chapter} ke jo exact questions galat hue the — unhe bina notes ke redo karo. Har step pe explain karo kya kar rahe ho.`;
+
+    const selfCheck1 = p1.dominantError === 'Memory'
+        ? `${p1.chapter} ke 5 key facts blank page pe bina notes ke likho.`
+        : p1.dominantError === 'Conceptual'
+        ? `${p1.chapter} ka ek core mechanism apne words mein explain karo — bina book ke.`
+        : `${p1.chapter} ke 2 practice problems bina formula sheet ke solve karo.`;
+
+    const selfCheck2 = (p2.subConcepts || []).length > 0
+        ? `${p2.subConcepts[0]} ko ek example se explain karo — bina notes ke.`
         : `${p2.chapter} ke 2 problems solve karo bina help ke.`;
     const selfCheck3 = `Last 3 saal ke ${p3.chapter} ke questions time karke solve karo.`;
 
@@ -884,19 +950,25 @@ function generateMode1Report(studentData, testMetadata, studentLevel, levelRatio
         tonightHomework: {
             chapter: p0.chapter,
             subject: p0.subject,
-            taskType: studentLevel === 'Foundation' ? 'NCERT Active Recall' : 'Error Correction',
+            taskType: taskTypeForError(p0.dominantError),
             resource: book0,
-            taskInHinglish: tmpl.tonight(p0.chapter, p0.subject),
-            durationMinutes: studentLevel === 'Foundation' ? 30 : 25,
+            // Fix 2: instruction now branches on dominantError, not global studentLevel
+            taskInHinglish: taskForError(p0.dominantError, p0.chapter, p0.subject, p0.subConcepts, p0.questions, subjectLevel(p0.subject), book0),
+            durationMinutes: p0.dominantError === 'Conceptual' ? 35 : 30,
             selfCheck: selfCheck0,
-            mentorNote: tmpl.mentor(p0.chapter)
+            mentorNote: p0.dominantError === 'Memory'
+                ? `Pehle recall strong karo — NEET mein yaad nahi aaya toh sab bekaar.`
+                : p0.dominantError === 'Conceptual'
+                ? `Concept clear hoga toh 3-4 questions automatically fix honge — shortcuts mat lo.`
+                : `Tu jaanta hai ye — ab sirf practise ka game hai.`
         },
         day2Task: {
             chapter: p1.chapter,
             subject: p1.subject,
-            taskType: 'Concept Re-read',
+            taskType: taskTypeForError(p1.dominantError),
             resource: book1,
-            taskInHinglish: `${p1.chapter} pe kal focus karo — ${book1} se medium difficulty questions karo. ${p1.wrong} questions is chapter mein galat hue the.`,
+            // Fix 2: Day 2 instruction also branches on p1.dominantError
+            taskInHinglish: taskForError(p1.dominantError, p1.chapter, p1.subject, p1.subConcepts, p1.questions, subjectLevel(p1.subject), book1),
             durationMinutes: 30,
             selfCheck: selfCheck1,
             mentorNote: `Ek din ek chapter — consistency hi NEET ka formula hai.`
@@ -904,19 +976,19 @@ function generateMode1Report(studentData, testMetadata, studentLevel, levelRatio
         day3_4Task: {
             chapter: p2.chapter,
             subject: p2.subject,
-            taskType: 'Trap-Spotting',
+            taskType: taskTypeForError(p2.dominantError),
             resource: book2,
-            taskInHinglish: topics1.length > 0
-                ? `${p2.chapter} mein ${topics1.join(' aur ')} sub-topics pe focus karo — yahi weak points hain. ${book2} se targeted practice karo.`
-                : `${p2.chapter} pe aaj zyada time do — ${p2.wrong} questions galat hue the is area mein.`,
+            taskInHinglish: taskForError(p2.dominantError, p2.chapter, p2.subject, p2.subConcepts, p2.questions, subjectLevel(p2.subject), book2),
             durationMinutes: 35,
             selfCheck: selfCheck2,
             mentorNote: `Sub-concept fix ho gaya toh chapter fix ho gaya.`
         },
+        // Fix 3: mini-test samples across all priority chapters, not first 5 wrong questions
         day5MiniTest: {
-            instructions: `Aaj woh exact questions dobara karo jo is test mein galat hue the — ${incorrect.slice(0, 5).map(q => `Q${q.qno}`).join(', ')}. Timer lagao, exactly 1 minute per question. Across all subjects — ${uniqueSubjects.join(', ')}.`,
-            passCriteria: `${Math.ceil(Math.min(incorrect.length, 5) * 0.7)} out of ${Math.min(incorrect.length, 5)} correct = improvement confirmed.`,
-            durationMinutes: Math.min(incorrect.length, 5) * 1 + 5
+            instructions: `Aaj woh exact questions dobara karo jo is test mein galat hue the — ${miniTestQnos.map(n => `Q${n}`).join(', ')}. Ye questions specifically un chapters se hain jinhein tune pichle 4 dinon mein padha (${[...new Set([p0.chapter, p1.chapter, p2.chapter])].join(', ')}). Timer lagao, exactly 1 minute per question. Koi notes mat dekho — ab pata chalega kya actually fix hua.`,
+            passCriteria: `${Math.ceil(miniTestQnos.length * 0.7)} out of ${miniTestQnos.length} correct = improvement confirmed. Isse kam aaye toh woh specific chapter ek aur din do.`,
+            durationMinutes: miniTestQnos.length * 1 + 5,
+            whyJustification: `Ye mini-test validate karta hai ki teri 4 din ki mehnat actually kaam aayi — har address kiye chapter se ek question hai, random nahi.`
         },
         day6_7Consolidation: {
             chapter: p3.chapter,
@@ -931,12 +1003,16 @@ function generateMode1Report(studentData, testMetadata, studentLevel, levelRatio
     };
 
     // Summary lists top chapters across all subjects
-    const chapterList = p.slice(0, 3).map(c => `${c.chapter} (${c.subject}, ${c.wrong} wrong)`).join('; ');
+    const chapterList = p.slice(0, 3).map(c => `${c.chapter} (${c.subject}, ${c.wrong} wrong, dominant: ${c.dominantError})`).join('; ');
+
+    // Fix 8: parentCheckpoint as a verification TASK, not a question
+    // Parent must ask the student to EXPLAIN something — one-word answers impossible
+    const parentCheckpoint = `Aaj raat ${name} se ek kaam karwao: "${p0.chapter} ke baare mein ek cheez apne words mein samjhao — jaise mujhe pata hi nahi ho." Agar sirf "padha" ya "kar liya" kehta/kehti hai toh kaam abhi poora nahi hua. Explanation 2 sentences mein honi chahiye.`;
 
     return {
         studentLevel,
         levelRationale,
-        academicSummary: `${name}, is test mein ${subjectSummary} — fixable hai. Sabse zyada priority: ${p0.chapter} (${p0.wrong} questions). Is hafte systematic karo — har din ek area.`,
+        academicSummary: `${name}, is test mein ${subjectSummary} — fixable hai. Sabse zyada priority: ${p0.chapter} (${p0.wrong} questions, ${p0.dominantError} errors). Is hafte systematic karo — har din ek area.`,
         errorAnalysis: {
             conceptualCount:  errBreakdown.conceptual  || 0,
             applicationCount: errBreakdown.application || 0,
@@ -944,8 +1020,8 @@ function generateMode1Report(studentData, testMetadata, studentLevel, levelRatio
             forensicDeepDive: `Top weak areas: ${chapterList}. ${incorrect.length} total questions need revision across ${uniqueSubjects.length} subject(s).`
         },
         actionPlan,
-        parentCheckpoint: `Aaj raat ${name} se poochiye: "${p0.chapter} aur ${p1.chapter} — dono pe kuch padha aaj? Ek point batao."`,
-        parentBriefing: `${name} ko is hafte ${subjectSummary}. Sabse bada gap: ${p0.chapter}. Hum ne 7-din ka plan diya hai jo ${uniqueSubjects.join(' aur ')} dono cover karta hai. Please ensure 30-40 mins daily study this week.`
+        parentCheckpoint,
+        parentBriefing: `${name} ko is hafte ${subjectSummary}. Sabse bada gap: ${p0.chapter} (${p0.dominantError} type errors — ${p0.dominantError === 'Memory' ? 'yaadaan toot rahi hain' : p0.dominantError === 'Conceptual' ? 'concept root se clear nahi' : 'theory pata hai lekin apply nahi ho raha'}). Hum ne 7-din ka targeted plan diya hai. Please ensure 30-40 mins daily study this week.`
     };
 }
 
@@ -1127,16 +1203,88 @@ Address by name — exactly what happened in this test. Be specific.
 [Exactly how student will know this week worked — measurable]
 `;
 
+        // ── Fix 4: Per-subject level map — prevents prescribing wrong task type
+        // e.g. don't prescribe NCERT active recall to a student who's strong in Biology
+        // but weak in Physics. Each subject gets its own level based on error profile.
+        const subjectErrorMap = {};
+        incorrectQuestions.forEach(q => {
+            const sub = q.subject || 'Unknown';
+            if (!subjectErrorMap[sub]) subjectErrorMap[sub] = { Memory: 0, Conceptual: 0, Application: 0, total: 0 };
+            subjectErrorMap[sub][q.errorType || 'Application']++;
+            subjectErrorMap[sub].total++;
+        });
+        const subjectLevelsBlock = Object.entries(subjectErrorMap).map(([sub, e]) => {
+            if (e.total === 0) return null;
+            const lvl = e.Memory / e.total > 0.5 ? 'Foundation'
+                      : e.Application / e.total > 0.5 ? 'Refinement'
+                      : 'Application';
+            const prescription = lvl === 'Foundation'
+                ? 'NCERT active recall + close-book writing. No MCQ drills yet.'
+                : lvl === 'Refinement'
+                ? 'Speed drills + trap-spotting. No re-reading basics.'
+                : 'Targeted MCQ practice on specific sub-concepts + step-by-step error analysis.';
+            return `  ${sub}: ${lvl} — ${prescription}`;
+        }).filter(Boolean).join('\n');
+
+        // ── Fix 7: Build mini-test question set that samples across addressed chapters
+        // This replaces the broken "redo first 5 wrong questions" which was subject-biased
+        const miniTestPool = [];
+        const chapsSeen = new Set();
+        priorityData.priority.forEach(ch => {
+            if (chapsSeen.has(ch.chapter)) return;
+            chapsSeen.add(ch.chapter);
+            const chapQs = incorrectQuestions.filter(q => q.chapter === ch.chapter);
+            chapQs.slice(0, 2).forEach(q => miniTestPool.push(q.qno));
+        });
+        // fill to 6 if needed
+        incorrectQuestions.forEach(q => { if (miniTestPool.length < 6 && !miniTestPool.includes(q.qno)) miniTestPool.push(q.qno); });
+        const miniTestQnosStr = miniTestPool.slice(0, 6).map(n => `Q${n}`).join(', ');
+        const miniTestChapStr = [...chapsSeen].slice(0, 4).join(', ');
+
+        // ── Fix 7: Explicit slot-to-chapter sequencing table (replaces ambiguous narrative)
+        // Prevents the AI from repeating Chapter #1 in Day 2 OR jumping chaotically
+        const p0 = priorityData.priority[0];
+        const p1 = priorityData.priority[1] || priorityData.priority[0];
+        const p2 = priorityData.priority[2] || priorityData.priority[1] || priorityData.priority[0];
+        const p3 = priorityData.priority[3] || priorityData.priority[2] || priorityData.priority[1] || priorityData.priority[0];
+        // Day 2 rule: if p0.dominantError is Memory (fixable in 1 night), advance to p1 on Day 2.
+        // If p0 is Conceptual/Application (needs 2 days), stay on p0 with a different task angle.
+        const day2Chapter = p0 && p0.dominantError === 'Memory' ? p1 : p0;
+        const day2TaskNote = p0 && p0.dominantError === 'Memory'
+            ? `(p0 was Memory-type — fixed in 1 night; advance to Priority #2)`
+            : `(p0 is ${p0?.dominantError || 'Conceptual'}-type — needs Day 2 follow-up with a different task angle, not re-reading)`;
+
+        const sequencingTable = `
+MANDATORY SLOT SEQUENCING — follow this exactly, no exceptions:
+┌─────────────────┬──────────────────────────────────────────────────────────────┐
+│ Slot            │ Chapter Assignment                                            │
+├─────────────────┼──────────────────────────────────────────────────────────────┤
+│ tonightHomework │ Priority #1: ${p0?.chapter || '—'} (${p0?.subject || '—'}) — ${p0?.dominantError || '—'} error type   │
+│ day2Task        │ ${day2Chapter?.chapter || '—'} (${day2Chapter?.subject || '—'}) ${day2TaskNote} │
+│ day3_4Task      │ Priority #${p0?.dominantError === 'Memory' ? '3' : '2'}: ${p2?.chapter || '—'} (${p2?.subject || '—'})              │
+│ day5MiniTest    │ EXACTLY these Qs: ${miniTestQnosStr}              │
+│                 │ Sampled from: ${miniTestChapStr}                  │
+│                 │ 1 question per addressed chapter — validates all 4 days      │
+│ day6_7          │ Priority #${p0?.dominantError === 'Memory' ? '4' : '3'}: ${p3?.chapter || '—'} (${p3?.subject || '—'}) + cross-subject speed set │
+└─────────────────┴──────────────────────────────────────────────────────────────┘
+NEVER reassign slots. NEVER put a low-priority chapter in tonight's slot.
+The mini-test MUST use exactly the Q numbers listed above — do not substitute.`;
+
         const prompt = `
 Student: ${studentName}
 Score: ${perf.neetMarks ?? perf.score ?? 0} / ${perf.maxMarks ?? 240} | Correct: ${perf.totalCorrect ?? 0} | Wrong: ${perf.totalWrong ?? 0} | Unattempted: ${unattemptedCount}
 
 === STUDENT LEVEL (pre-computed — do not override) ===
-Level: ${studentLevel} | Mode: ${studentMode}
+Global Level: ${studentLevel} | Mode: ${studentMode}
 Why: ${levelRationale}
 Tone directive: ${levelToneInstructions}
 
+=== PER-SUBJECT LEVELS (Fix 4 — calibrate task type per subject, not global level) ===
+${subjectLevelsBlock || 'No per-subject breakdown available — use global level.'}
+
 ${priorityBlock}
+
+${sequencingTable}
 
 === ALL INCORRECT QUESTIONS (full metadata) ===
 ${JSON.stringify(incorrectQuestions, null, 2)}
@@ -1146,8 +1294,9 @@ ${langBlock}
 ${mode2HinglishStructure}
 
 Generate the complete diagnostic report and 7-day homework plan per schema.
-IMPORTANT: Use the exact book references from the Priority Attack List for each chapter's "resource" field.
-tonightHomework = Priority Chapter #1. day2Task = follow-up same or #2. day3_4Task = Priority #2 or #3. day5MiniTest = redo exact wrong Qs. day6_7Consolidation = Priority #3 or #4.
+CRITICAL: Use the MANDATORY SLOT SEQUENCING TABLE above — it is pre-computed and non-negotiable.
+Use the exact book references from the Priority Attack List for each chapter's "resource" field.
+The mini-test Q numbers in day5MiniTest.instructions MUST match exactly: ${miniTestQnosStr}
 `;
 
         const tailoredInstructions = buildSubjectSpecificInstructions(incorrectQuestions, studentMode);
@@ -1200,17 +1349,22 @@ tonightHomework = Priority Chapter #1. day2Task = follow-up same or #2. day3_4Ta
                                     day5MiniTest: {
                                         type: Type.OBJECT,
                                         properties: {
-                                            instructions:    { type: Type.STRING, description: "Rahul Sir tells student to redo the exact wrong Qs from this paper under timed conditions. Name specific Q numbers, set a time limit, explain what to do differently this time." },
-                                            passCriteria:    { type: Type.STRING, description: "What 'pass' means — e.g., '4 out of 5 correct means fixed. Less = one more revision loop.'" },
-                                            durationMinutes: { type: Type.INTEGER }
+                                            // Fix 3: Q numbers must match the pre-computed cross-chapter sample
+                                            instructions:     { type: Type.STRING, description: `MANDATORY: Rahul Sir tells student to redo EXACTLY these questions: ${miniTestQnosStr} (sampled from all chapters covered in Days 1–4: ${miniTestChapStr}). Set timed conditions, name Q numbers explicitly, explain what to do differently this time. DO NOT substitute or add different Q numbers.` },
+                                            passCriteria:     { type: Type.STRING, description: "Chapter-specific pass criteria — e.g., '2/2 from [Chapter A] = fixed. 1/2 from [Chapter B] = needs one more day on that chapter specifically.' Tells the student exactly what score means what." },
+                                            whyJustification: { type: Type.STRING, description: "One sentence explaining WHY these Q numbers were chosen — makes the student understand this is not random, it validates each chapter they worked on." },
+                                            durationMinutes:  { type: Type.INTEGER }
                                         },
-                                        required: ["instructions", "passCriteria", "durationMinutes"]
+                                        required: ["instructions", "passCriteria", "whyJustification", "durationMinutes"]
                                     },
                                     day6_7Consolidation: { ...homeworkSlotSchema }
                                 },
                                 required: ["tonightHomework", "day2Task", "day3_4Task", "day5MiniTest", "day6_7Consolidation"]
                             },
-                            parentCheckpoint: { type: Type.STRING, description: "ONE non-technical question a parent can ask tonight to verify homework was done. Understandable by a non-science parent. In Hinglish or English per mode." },
+                            // Fix 8: parentCheckpoint is a VERIFICATION TASK, not a question.
+                            // A yes/no or one-word answer must be impossible.
+                            // Parent must ask student to EXPLAIN — if they can't, reading isn't done.
+                            parentCheckpoint: { type: Type.STRING, description: `A verification TASK a non-science parent can give tonight. Pattern: 'Ask [student name] to explain [specific topic] in 2 sentences as if you don't know it. If they only say "padha" or "done" — homework is incomplete.' Must be understandable by a parent with zero science background. In ${languageMode === 'hinglish' ? 'Hinglish' : 'English'}.` },
                             parentBriefing:   { type: Type.STRING, description: "Warm but specific note for parents — what happened in this test, what the student does this week, exactly ONE actionable thing parents can do to support." }
                         },
                         required: ["studentLevel", "levelRationale", "academicSummary", "errorAnalysis", "actionPlan", "parentCheckpoint", "parentBriefing"]

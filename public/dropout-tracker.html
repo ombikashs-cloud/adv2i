@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dropout Risk Tracker - BioRivet</title>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1F3864; /* Navy */
+            --accent: #E65100; /* Orange */
+            --accent-light: #FFF3E0;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-body: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .brand-link { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 0.9rem; font-weight: 500;}
+        .brand-link:hover { color: white; text-decoration: underline; }
+
+        main {
+            flex: 1;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        h2 { margin-top: 0; color: var(--primary); }
+
+        .upload-section {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            margin-bottom: 2rem;
+        }
+
+        .upload-zone {
+            border: 2px dashed var(--accent);
+            background: var(--accent-light);
+            padding: 3rem 2rem;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .upload-zone:hover { background: #ffe0b2; }
+        .upload-icon { font-size: 3rem; margin-bottom: 1rem; color: var(--accent); }
+        .file-input { display: none; }
+
+        .info-box {
+            margin-top: 1.5rem;
+            background: rgba(31, 56, 100, 0.05);
+            border-left: 4px solid var(--primary);
+            padding: 1rem;
+            border-radius: 0 4px 4px 0;
+            font-size: 0.9rem;
+        }
+
+        /* Dashboard Styles */
+        #dashboard { display: none; }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        
+        .metric-val { font-size: 2.5rem; font-weight: 700; line-height: 1; margin-bottom: 0.5rem; }
+        .metric-label { color: var(--text-muted); font-size: 0.9rem; font-weight: 500; text-transform: uppercase; }
+
+        .critical-panel {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .critical-panel h3 { color: #b91c1c; margin-top: 0; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+
+        .critical-list { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+        .critical-item {
+            background: white; padding: 1rem; border-radius: 8px; border-left: 4px solid var(--danger);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .critical-item h4 { margin: 0 0 0.5rem 0; color: var(--text-main); }
+        .intervention-note { font-size: 0.85rem; color: #7f1d1d; background: #fee2e2; padding: 0.5rem; border-radius: 4px; }
+
+        .table-container {
+            background: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            overflow-x: auto;
+            margin-bottom: 2rem;
+        }
+
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; }
+        th { background: #f1f5f9; padding: 1rem; font-weight: 600; color: var(--text-main); cursor: pointer; position: sticky; top: 0; }
+        th:hover { background: #e2e8f0; }
+        td { padding: 1rem; border-bottom: 1px solid var(--border); }
+        tr:last-child td { border-bottom: none; }
+        tr:hover { background: #f8fafc; }
+
+        .badge { padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; display: inline-block; }
+        .badge-danger { background: #fee2e2; color: #b91c1c; }
+        .badge-warning { background: #fef3c7; color: #b45309; }
+        .badge-success { background: #dcfce7; color: #166534; }
+
+        .btn {
+            display: inline-block; padding: 0.75rem 1.5rem; border-radius: 6px; font-weight: 600; font-size: 1rem;
+            cursor: pointer; border: none; transition: background 0.2s; color: white;
+        }
+        .btn-primary { background: var(--primary); }
+        .btn-primary:hover { background: #162a4a; }
+        .btn-accent { background: var(--accent); display: flex; align-items: center; gap: 0.5rem; }
+        .btn-accent:hover { background: #cc4800; }
+
+        footer {
+            background-color: var(--primary);
+            color: rgba(255, 255, 255, 0.8);
+            text-align: center;
+            padding: 1.5rem;
+            margin-top: auto;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1 style="margin: 0; font-size: 1.5rem;">Student Dropout Risk Tracker</h1>
+        <a href="indexx.html" class="brand-link">&larr; Back to BioRivet Hub</a>
+    </header>
+
+    <main>
+        <!-- Upload Section -->
+        <div class="upload-section" id="upload-section">
+            <h2>Identify At-Risk Students</h2>
+            <div class="upload-zone" onclick="document.getElementById('file-input').click()" id="drop-zone">
+                <div class="upload-icon">⚠️</div>
+                <div style="font-size: 1.2rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--primary);">Upload Student Data</div>
+                <div style="color: var(--text-muted); font-size: 0.95rem;">Drag & drop Excel or CSV file here, or click to browse.</div>
+                <input type="file" id="file-input" class="file-input" accept=".xlsx, .xls, .csv">
+            </div>
+
+            <div class="info-box">
+                <strong>Expected Columns:</strong> 
+                <code>Student Name</code> | <code>Attendance %</code> | <code>Test 1 Score</code> | <code>Test 2 Score</code> | <code>Test 3 Score</code> | <code>Fee Status</code> | <code>Counselling Sessions</code>
+                <br><br>
+                <button class="btn" style="background: transparent; border: 1px solid var(--primary); color: var(--primary); padding: 0.5rem 1rem; font-size: 0.85rem;" onclick="downloadTemplate()">⬇ Download Sample Template</button>
+            </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboard">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h2>Risk Analysis Report</h2>
+                <button class="btn btn-accent" onclick="exportReport()">📥 Export Report</button>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-val" id="metric-high-risk" style="color: var(--danger);">0</div>
+                    <div class="metric-label">High Risk Students</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-val" id="metric-avg-attendance">0%</div>
+                    <div class="metric-label">Average Attendance</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-val" id="metric-fee-pending" style="color: var(--warning);">0</div>
+                    <div class="metric-label">Fee Pending Cases</div>
+                </div>
+            </div>
+
+            <div class="critical-panel" id="critical-panel" style="display: none;">
+                <h3>⚠️ Immediate Action Required (Top 5 At-Risk)</h3>
+                <div class="critical-list" id="critical-list"></div>
+            </div>
+
+            <div class="table-container">
+                <table id="risk-table">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable('name')">Student Name ↕</th>
+                            <th onclick="sortTable('attendance')">Attendance ↕</th>
+                            <th onclick="sortTable('avgScore')">Avg Score ↕</th>
+                            <th onclick="sortTable('trend')">Score Trend ↕</th>
+                            <th onclick="sortTable('fee')">Fee Status ↕</th>
+                            <th onclick="sortTable('riskScore')">Risk Score ↕</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            
+            <button class="btn btn-primary" onclick="resetApp()">Upload New Data</button>
+        </div>
+    </main>
+
+    <footer>
+        &copy; 2026 BioRivet. Know More. Fear Less.
+    </footer>
+
+    <script>
+        let globalData = [];
+        let sortAsc = false;
+
+        // Drag and Drop
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.background = '#ffe0b2'; });
+        dropZone.addEventListener('dragleave', () => dropZone.style.background = 'var(--accent-light)');
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.background = 'var(--accent-light)';
+            if (e.dataTransfer.files.length) processFile(e.dataTransfer.files[0]);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) processFile(e.target.files[0]);
+        });
+
+        function downloadTemplate() {
+            const ws = XLSX.utils.aoa_to_sheet([
+                ["Student Name", "Attendance %", "Test 1 Score", "Test 2 Score", "Test 3 Score", "Fee Status", "Counselling Sessions"],
+                ["John Doe", 85, 90, 85, 80, "Paid", 2],
+                ["Jane Smith", 60, 70, 65, 50, "Pending", 0]
+            ]);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Template");
+            XLSX.writeFile(wb, "Risk_Tracker_Template.xlsx");
+        }
+
+        function processFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                    analyzeData(json);
+                } catch (err) {
+                    alert("Error processing file. Please ensure it is a valid Excel/CSV file.");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function analyzeData(data) {
+            globalData = data.map(row => {
+                const keys = Object.keys(row);
+                // Fuzzy matching for columns
+                const getName = () => row[keys.find(k => k.toLowerCase().includes('name'))] || 'Unknown';
+                const getVal = (keywords, defaultVal=0) => {
+                    const key = keys.find(k => keywords.some(kw => k.toLowerCase().includes(kw)));
+                    return key ? parseFloat(row[key]) || defaultVal : defaultVal;
+                };
+                const getStr = (keywords, defaultVal='') => {
+                    const key = keys.find(k => keywords.some(kw => k.toLowerCase().includes(kw)));
+                    return key ? String(row[key]).trim() : defaultVal;
+                };
+
+                const name = getName();
+                const attendance = getVal(['attendance', 'att'], 100);
+                const t1 = getVal(['test 1', 'test1', 'score 1']);
+                const t2 = getVal(['test 2', 'test2', 'score 2']);
+                const t3 = getVal(['test 3', 'test3', 'score 3']);
+                const feeStatus = getStr(['fee', 'payment'], 'Paid');
+                const counselling = getVal(['counsel', 'session'], 0);
+
+                // Calculations
+                const avgScore = ((t1 + t2 + t3) / (t1>0||t2>0||t3>0 ? [t1,t2,t3].filter(x=>x>0).length : 1)).toFixed(1);
+                
+                // Score decline weight
+                let declineWeight = 0;
+                let trend = 'Stable';
+                if (t1 > 0 && t3 > 0) {
+                    if (t3 < t1) {
+                        declineWeight = ((t1 - t3) / t1) * 100;
+                        trend = `📉 -${declineWeight.toFixed(1)}%`;
+                    } else if (t3 > t1) {
+                        trend = `📈 +${(((t3 - t1) / t1) * 100).toFixed(1)}%`;
+                    }
+                }
+
+                const feePenalty = feeStatus.toLowerCase().includes('pending') ? 100 : 0;
+                
+                // Risk Formula
+                // Risk Score (0–100) = (100 - Attendance%) × 0.30 + Score Decline Weight × 0.40 + Fee Penalty × 0.20 + (10 - min(Counselling,10)) × 0.10
+                let riskScore = (100 - attendance) * 0.30 + declineWeight * 0.40 + feePenalty * 0.20 + (10 - Math.min(counselling, 10)) * 0.10;
+                riskScore = Math.min(100, Math.max(0, riskScore)); // Clamp 0-100
+
+                let status = 'Safe';
+                let intervention = 'Continue regular engagement.';
+                if (riskScore >= 70) {
+                    status = 'High Risk';
+                    intervention = 'Schedule immediate counselling. Check fee status. Call parents this week.';
+                } else if (riskScore >= 40) {
+                    status = 'Watch';
+                    intervention = 'Monitor attendance next 2 weeks. Assign peer buddy.';
+                }
+
+                return {
+                    name, attendance, avgScore, trend, declineWeight, fee: feeStatus, riskScore, status, intervention
+                };
+            });
+
+            renderDashboard();
+        }
+
+        function renderDashboard() {
+            document.getElementById('upload-section').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+
+            // Metrics
+            const highRiskCount = globalData.filter(d => d.status === 'High Risk').length;
+            const avgAtt = globalData.reduce((sum, d) => sum + d.attendance, 0) / (globalData.length || 1);
+            const feePending = globalData.filter(d => d.fee.toLowerCase().includes('pending')).length;
+
+            document.getElementById('metric-high-risk').innerText = highRiskCount;
+            document.getElementById('metric-avg-attendance').innerText = avgAtt.toFixed(1) + '%';
+            document.getElementById('metric-fee-pending').innerText = feePending;
+
+            // Critical Panel
+            const criticalStudents = [...globalData].sort((a,b) => b.riskScore - a.riskScore).slice(0, 5).filter(s => s.status === 'High Risk');
+            const panel = document.getElementById('critical-panel');
+            if (criticalStudents.length > 0) {
+                panel.style.display = 'block';
+                document.getElementById('critical-list').innerHTML = criticalStudents.map(s => `
+                    <div class="critical-item">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <h4>${s.name}</h4>
+                            <span class="badge badge-danger">Risk: ${s.riskScore.toFixed(0)}</span>
+                        </div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                            Att: ${s.attendance}% | Trend: ${s.trend}
+                        </div>
+                        <div class="intervention-note">${s.intervention}</div>
+                    </div>
+                `).join('');
+            } else {
+                panel.style.display = 'none';
+            }
+
+            renderTable(globalData.sort((a,b) => b.riskScore - a.riskScore));
+        }
+
+        function renderTable(data) {
+            const tbody = document.querySelector('#risk-table tbody');
+            tbody.innerHTML = data.map(d => {
+                let badgeClass = 'badge-success';
+                if (d.status === 'High Risk') badgeClass = 'badge-danger';
+                if (d.status === 'Watch') badgeClass = 'badge-warning';
+
+                return `
+                    <tr>
+                        <td><strong>${d.name}</strong></td>
+                        <td>${d.attendance}%</td>
+                        <td>${d.avgScore}</td>
+                        <td>${d.trend}</td>
+                        <td>${d.fee}</td>
+                        <td><strong>${d.riskScore.toFixed(1)}</strong></td>
+                        <td><span class="badge ${badgeClass}">${d.status}</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function sortTable(key) {
+            sortAsc = !sortAsc;
+            const sorted = [...globalData].sort((a, b) => {
+                let valA = a[key]; let valB = b[key];
+                if (key === 'attendance' || key === 'avgScore' || key === 'riskScore') {
+                    valA = parseFloat(valA); valB = parseFloat(valB);
+                } else if (key === 'trend') {
+                    valA = a.declineWeight; valB = b.declineWeight; // Sort trend by actual decline
+                }
+                if (valA < valB) return sortAsc ? -1 : 1;
+                if (valA > valB) return sortAsc ? 1 : -1;
+                return 0;
+            });
+            renderTable(sorted);
+        }
+
+        function exportReport() {
+            const exportData = globalData.map(d => ({
+                'Student Name': d.name,
+                'Attendance %': d.attendance,
+                'Avg Score': d.avgScore,
+                'Score Trend': d.trend,
+                'Fee Status': d.fee,
+                'Risk Score': d.riskScore.toFixed(1),
+                'Risk Level': d.status,
+                'Recommended Intervention': d.intervention
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Risk Report");
+            XLSX.writeFile(wb, "BioRivet_Dropout_Risk_Report.xlsx");
+        }
+
+        function resetApp() {
+            document.getElementById('dashboard').style.display = 'none';
+            document.getElementById('upload-section').style.display = 'block';
+            document.getElementById('file-input').value = '';
+            globalData = [];
+        }
+
+    </script>
+</body>
+</html>

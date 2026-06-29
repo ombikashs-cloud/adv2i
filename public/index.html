@@ -1,0 +1,3140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BioRivet – NEET Diagnostic Tool</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-color: #f8fafc;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --header-bg: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+  --card-bg: rgba(255, 255, 255, 0.95);
+  --border: #e2e8f0;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --green: #10b981;
+  --orange: #f59e0b;
+  --red: #ef4444;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:var(--bg-color);color:var(--text-main);font-size:14px;line-height:1.5; -webkit-font-smoothing: antialiased;}
+.wrap{max-width:1140px;margin:0 auto;padding:24px 20px}
+
+/* HEADER */
+.header{background:var(--header-bg);color:white;padding:20px 24px;border-radius:var(--radius-lg);margin-bottom:24px;display:flex;align-items:center;gap:16px;box-shadow:var(--shadow-md)}
+.logo{background:white;color:var(--primary);font-weight:800;font-size:20px;width:72px;height:72px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 15px rgba(255,255,255,0.2)}
+.header h1{font-size:18px;font-weight:700;letter-spacing:-0.5px}
+.header p{font-size:12px;opacity:0.85;margin-top:4px;font-weight:400}
+.header-tag{font-size:11px; font-weight:700; color:#93c5fd; margin-top:6px; letter-spacing:1px; text-transform:uppercase; text-shadow: 0 0 8px rgba(147,197,253,0.4);}
+
+/* STEP NAV */
+.steps{display:flex;gap:0;margin-bottom:24px;background:white;border-radius:var(--radius-md);border:1px solid var(--border);box-shadow:var(--shadow-sm);overflow:hidden}
+.step{flex:1;padding:16px 20px;display:flex;align-items:center;gap:12px;cursor:pointer;border-right:1px solid var(--border);position:relative;transition:all 0.2s ease}
+.step:last-child{border-right:none}
+.step:hover:not(.locked){background:#f8fafc}
+.step.active{background:var(--primary);color:white}
+.step.done{background:#f0fdf4;color:#166534}
+.step.locked{opacity:0.5;cursor:not-allowed;}
+.step-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;transition:all 0.2s ease}
+.step.active .step-num{background:white;color:var(--primary);box-shadow:0 0 10px rgba(0,0,0,0.1)}
+.step.done .step-num{background:var(--green);color:white}
+.step:not(.active):not(.done) .step-num{background:#e2e8f0;color:#64748b}
+.step-label{font-size:13px;font-weight:600}
+.step-sub{font-size:11px;opacity:0.8}
+
+/* CARDS */
+.card{background:var(--card-bg);backdrop-filter:blur(10px);border-radius:var(--radius-lg);border:1px solid rgba(255,255,255,0.5);box-shadow:var(--shadow-lg);padding:24px;margin-bottom:20px;transition:transform 0.2s ease, box-shadow 0.2s ease}
+.card:hover{transform:translateY(-2px);box-shadow:0 15px 30px -5px rgba(0,0,0,0.08)}
+.card-title{font-size:15px;font-weight:700;color:var(--text-main);margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.section-hdr{background:linear-gradient(to right, #1e293b, #334155);color:white;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;margin-bottom:16px;box-shadow:var(--shadow-sm)}
+
+/* UPLOAD ZONES */
+.upload-pair{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+.upload-box{border:2px dashed #cbd5e1;border-radius:var(--radius-md);padding:32px 24px;text-align:center;cursor:pointer;background:#f8fafc;transition:all 0.3s cubic-bezier(0.4, 0, 0.2, 1);position:relative}
+.upload-box:hover,.upload-box.drag{background:#eff6ff;border-color:var(--primary);transform:scale(1.01)}
+.upload-box.loaded{border-style:solid;border-color:var(--green);background:#f0fdf4}
+.upload-icon{font-size:36px;margin-bottom:12px;transition:transform 0.3s ease}
+.upload-box:hover .upload-icon{transform:translateY(-4px)}
+.upload-box h3{font-size:14px;font-weight:700;color:var(--text-main);margin-bottom:6px}
+.upload-box p{font-size:12px;color:var(--text-muted)}
+.upload-box .loaded-name{font-size:13px;color:#166534;font-weight:600;margin-top:8px}
+
+/* FORMAT BOXES */
+.fmt{background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px}
+.fmt code{font-family:'JetBrains Mono','Courier New',monospace;font-size:12px;color:#334155;line-height:2}
+.fmt-label{font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px}
+
+/* TABLES */
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;border-radius:8px;overflow:hidden;border:1px solid var(--border)}
+th{background:#f1f5f9;color:#475569;padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border)}
+th.ctr,td.ctr{text-align:center}
+td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle;color:#334155;transition:background 0.15s ease}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#f8fafc}
+
+/* BADGES */
+.badge{display:inline-block;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px}
+.b-red{background:#fee2e2;color:#b91c1c}.b-yellow{background:#fef3c7;color:#b45309}.b-green{background:#dcfce7;color:#15803d}.b-blue{background:#dbeafe;color:#1d4ed8}
+.ch-badge{display:inline-block;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600}
+
+/* BUTTONS */
+.btn{padding:10px 20px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:600;transition:all 0.2s cubic-bezier(0.4, 0, 0.2, 1);display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.1)}
+.btn:active:not(:disabled){transform:translateY(0)}
+.btn:disabled{opacity:0.6;cursor:not-allowed}
+.btn-primary{background:linear-gradient(135deg, var(--primary), #4f46e5);color:white;box-shadow:0 4px 10px rgba(37, 99, 235, 0.2)}
+.btn-primary:hover{box-shadow:0 6px 15px rgba(37, 99, 235, 0.3)}
+.btn-secondary{background:white;color:var(--text-main);border:1px solid var(--border);box-shadow:var(--shadow-sm)}
+.btn-secondary:hover{border-color:#cbd5e1}
+.btn-green{background:linear-gradient(135deg, var(--green), #059669);color:white;box-shadow:0 4px 10px rgba(16, 185, 129, 0.2)}
+.btn-orange{background:linear-gradient(135deg, var(--orange), #d97706);color:white;box-shadow:0 4px 10px rgba(245, 158, 11, 0.2)}
+.btn-xl{padding:14px 32px;font-size:15px;width:100%;margin-top:8px;border-radius:10px}
+
+/* METRICS */
+.metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.metric{background:white;border-radius:12px;padding:20px;box-shadow:var(--shadow-md);border:1px solid var(--border);transition:transform 0.2s ease}
+.metric:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg)}
+.metric .mlabel{font-size:12px;color:var(--text-muted);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px}
+.metric .mval{font-size:28px;font-weight:800;color:var(--text-main);line-height:1.2}
+.metric .msub{font-size:11px;color:#94a3b8;margin-top:4px}
+
+/* PROGRESS */
+.pbar{height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden;min-width:100px}
+.pfill{height:100%;border-radius:4px;transition:width 1s cubic-bezier(0.4, 0, 0.2, 1)}
+
+/* STUDENT ROWS */
+.srow{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:white;box-shadow:var(--shadow-sm);transition:all 0.2s ease}
+.srow:hover{box-shadow:var(--shadow-md);border-color:#cbd5e1}
+.shdr{display:grid;gap:12px;align-items:center;padding:12px 16px;cursor:pointer}
+.sdetail{padding:16px;background:#f8fafc;border-top:1px solid var(--border);display:none}
+.sdetail.open{display:block;animation:slideDown 0.3s ease}
+@keyframes slideDown{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+.ans-grid{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.ans-cell{width:42px;height:42px;display:flex;align-items:center;justify-content:center;border-radius:8px;font-size:12px;font-weight:700;flex-direction:column;gap:2px;box-shadow:var(--shadow-sm);border:1px solid transparent}
+.ans-ok{background:#dcfce7;color:#15803d;border-color:#bbf7d0}
+.ans-err{background:#fee2e2;color:#b91c1c;border-color:#fecaca}
+.ans-blank{background:#f1f5f9;color:#64748b;border-color:var(--border)}
+.qlbl{font-size:9px;opacity:0.7}
+
+/* INSIGHTS */
+.insight{display:flex;gap:14px;align-items:flex-start;padding:16px;border-radius:10px;margin-bottom:10px;background:white;box-shadow:var(--shadow-sm);border:1px solid var(--border)}
+.idot{width:12px;height:12px;border-radius:50%;flex-shrink:0;margin-top:4px}
+
+/* NAV TABS inside report */
+.rtabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;background:#f1f5f9;padding:6px;border-radius:10px;display:inline-flex}
+.rtab{padding:8px 20px;border-radius:8px;background:transparent;border:none;cursor:pointer;font-size:13px;font-weight:600;color:#64748b;transition:all 0.2s ease}
+.rtab:hover:not(.active){color:var(--text-main)}
+.rtab.active{background:white;color:var(--primary);box-shadow:var(--shadow-sm)}
+
+/* MISC */
+.footer{background:transparent;color:var(--text-muted);text-align:center;padding:24px;font-size:12px;margin-top:24px;font-weight:500}
+.err-msg{color:#b91c1c;font-size:13px;margin-top:10px;padding:12px;background:#fee2e2;border-radius:8px;display:none;border:1px solid #fecaca}
+.ok-msg{color:#15803d;font-size:13px;margin-top:10px;padding:12px;background:#dcfce7;border-radius:8px;display:none;border:1px solid #bbf7d0}
+input[type=file]{display:none}
+@media(max-width:768px){.upload-pair{grid-template-columns:1fr}.metric-grid{grid-template-columns:repeat(2,1fr)}.rtabs{display:flex}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="header">
+  <img src="logo.png" alt="BioRivet Logo" style="height:72px; width:72px; border-radius:12px; background:white; padding:4px; object-fit:contain; box-shadow:0 0 15px rgba(255,255,255,0.2);" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+  <div class="logo" style="display:none;">BR</div>
+  <div>
+    <h1>BioRivet – NEET Diagnostic Tool &nbsp;<span style="opacity:.5;font-weight:400;font-size:13px">Generic Edition</span></h1>
+    <p>Upload any question paper + answer key → Upload student OMR data → Get full diagnostic report instantly</p>
+    <p class="header-tag">KNOW MORE. FEAR LESS.</p>
+  </div>
+  <a href="indexx.html" style="margin-left: auto; text-decoration: none; color: white; border: 1px solid rgba(255,255,255,0.3); padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.1); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+    &larr; Back to Portal
+  </a>
+</div>
+
+<!-- STEP NAV -->
+<div class="steps">
+  <div class="step active" id="step1-nav" onclick="gotoStep(1)">
+    <div class="step-num">1</div>
+    <div><div class="step-label">Question Paper</div><div class="step-sub">Upload Excel with answer key</div></div>
+  </div>
+  <div class="step locked" id="step2-nav" onclick="gotoStep(2)">
+    <div class="step-num">2</div>
+    <div><div class="step-label">Student Answers</div><div class="step-sub">Upload CSV or Excel</div></div>
+  </div>
+  <div class="step locked" id="step3-nav" onclick="gotoStep(3)">
+    <div class="step-num">3</div>
+    <div><div class="step-label">Diagnostic Report</div><div class="step-sub">Chapter analysis + action plans</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ STEP 1 ═══════════════════════════ -->
+<div id="step1-content">
+  <div class="card">
+    <div class="card-title">📋 Question Paper Format (Excel)</div>
+    <div class="fmt">
+      <div class="fmt-label">Required columns (exact header names — case insensitive):</div>
+      <code>
+        Q No &nbsp;| Question &nbsp;| Chapter &nbsp;| Sub-Concept &nbsp;| Error Type &nbsp;| Answer<br>
+        Q1 &nbsp;&nbsp; | Which enzyme... | Digestion | Enzyme Activation | Memory | B<br>
+        Q2 &nbsp;&nbsp; | Chylomicrons... | Digestion | Lipid Absorption  | Memory | A<br>
+        Q3 &nbsp;&nbsp; | Normal BP...    | Circulation | Blood Pressure  | Memory | C
+      </code>
+    </div>
+    <ul style="font-size:12px;color:#555;line-height:2;padding-left:18px">
+      <li><strong>Q No</strong> — Question number (Q1, Q2... or 1, 2...)</li>
+      <li><strong>Question</strong> — The actual text of the question (Recommended)</li>
+      <li><strong>Chapter</strong> — Used to group questions (e.g. Digestion, Circulation)</li>
+      <li><strong>Error Type</strong> — Memory / Conceptual / Application</li>
+      <li><strong>Answer</strong> — Correct answer: A, B, C, or D</li>
+      <li><strong style="color:#2E5EA8">✨ AI Auto-Tagging:</strong> If you only upload the Question text, BioRivet AI can automatically infer the Chapter, Error Type, and Correct Answer!</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="card-title">⬆ Upload Question Paper Blueprint & Answer Key</div>
+    <div class="upload-pair">
+      <div class="upload-box" id="qp-box" onclick="document.getElementById('qp-input').click()"
+        ondragover="dragOver(event,'qp-box')" ondragleave="dragLeave('qp-box')" ondrop="dropFile(event,'qp')">
+        <div class="upload-icon">📊</div>
+        <h3>Upload Question Blueprint</h3>
+        <p>Excel (.xlsx, .xls, .csv), PDF, Word (.docx, .doc), or Images (PNG, JPG, JPEG)</p>
+        <div class="loaded-name" id="qp-name" style="display:none"></div>
+        <div class="err-msg" id="qp-err"></div>
+        <div class="ok-msg"  id="qp-ok"></div>
+      </div>
+      <div class="upload-box" id="ans-box" onclick="document.getElementById('ans-input').click()"
+        ondragover="dragOver(event,'ans-box')" ondragleave="dragLeave('ans-box')" ondrop="dropFile(event,'ans')">
+        <div class="upload-icon">🔑</div>
+        <h3>Upload Answer Key</h3>
+        <p>Excel (.xlsx, .xls, .csv), PDF, Word (.docx, .doc), or Images (PNG, JPG, JPEG)</p>
+        <div class="loaded-name" id="ans-name" style="display:none"></div>
+        <div class="err-msg" id="ans-err"></div>
+        <div class="ok-msg"  id="ans-ok"></div>
+      </div>
+    </div>
+    <input type="file" id="qp-input" accept=".xlsx,.xls,.csv,.pdf,.png,.jpg,.jpeg,.docx,.doc" onchange="loadFile('qp',this)">
+    <input type="file" id="ans-input" accept=".xlsx,.xls,.csv,.pdf,.png,.jpg,.jpeg,.docx,.doc" onchange="loadFile('ans',this)">
+  </div>
+
+  <div class="card" id="qp-preview-card" style="display:none">
+    <div class="card-title" id="qp-preview-title">&#10003; Question Bank Preview</div>
+    
+    <div id="ai-tag-prompt" style="display:none; background:#FFF8E1; border:1px solid #FFCC80; border-radius:8px; padding:16px; margin-bottom:16px;">
+      <h4 style="color:#E65100; margin-bottom:12px; font-size:13px; font-weight:700;">✨ AI Forensic Tagging Control Panel</h4>
+      <p style="color:#5D4037; font-size:12px; margin-bottom:12px; line-height:1.5;">Some questions are missing basic tags, or you haven't populated the forensic audits yet. Trigger individual audits below:</p>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:10px; align-items:center;">
+        <button class="btn btn-secondary" onclick="runTagging('chapter', ['chapter', 'sub'], 'btn-tag-chap')" id="btn-tag-chap">Tag Chapters</button>
+        <button class="btn btn-secondary" onclick="runTagging('errorType', ['errorType'], 'btn-tag-err')" id="btn-tag-err">Tag Error Types</button>
+        <button class="btn btn-primary" onclick="runTagging('ncert', ['ncertDirectness'], 'btn-tag-ncert')" id="btn-tag-ncert">Audit NCERT</button>
+      </div>
+      <div id="ai-tag-status" style="font-size:12px; font-weight:600; color:#1F3864; margin-top: 12px; min-height: 18px;"></div>
+    </div>
+
+    <div style="overflow-x:auto;margin-bottom:14px"><table><thead id="qp-preview-head"></thead><tbody id="qp-preview-body"></tbody></table></div>
+
+    <button class="btn btn-primary" onclick="gotoStep(2)" id="next-step-btn" disabled>Next: Upload Student Answers →</button>
+  </div>
+
+  <div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap">
+    <button class="btn btn-orange" onclick="downloadQPTemplate()">⬇ Download Question Paper Template</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ STEP 2 ═══════════════════════════ -->
+<div id="step2-content" style="display:none">
+  <div class="card">
+    <div class="card-title">📝 Student Answer Sheet Format</div>
+    <div class="fmt">
+      <div class="fmt-label">CSV or Excel — one row per student, one column per question:</div>
+      <code>
+        Student Name, Q1, Q2, Q3, Q4 ... Q<em>n</em><br>
+        Aarav Singh,  B,  A,  C,  D  ... B<br>
+        Priya Sharma, A,  C,  B,  A  ... C
+      </code>
+    </div>
+    <ul style="font-size:12px;color:#555;line-height:2;padding-left:18px">
+      <li>First column must be student name, first row must be header</li>
+      <li>Answer columns must match the Q Nos in your question paper (Q1, Q2... or 1, 2...)</li>
+      <li>Answers: A, B, C, or D — leave blank if unanswered</li>
+      <li>Number of answer columns must equal number of questions</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="card-title">⬆ Upload Student Answers</div>
+    <div class="upload-box" id="sa-box" onclick="document.getElementById('sa-input').click()"
+      ondragover="dragOver(event,'sa-box')" ondragleave="dragLeave('sa-box')" ondrop="dropFile(event,'sa')">
+      <div class="upload-icon">📂</div>
+      <h3>Click to upload or drag & drop</h3>
+      <p>CSV or Excel file with student OMR answers</p>
+      <div class="loaded-name" id="sa-name" style="display:none"></div>
+    </div>
+    <input type="file" id="sa-input" accept=".xlsx,.xls,.csv" onchange="loadFile('sa',this)">
+    <div class="err-msg" id="sa-err"></div>
+    <div class="ok-msg"  id="sa-ok"></div>
+  </div>
+
+  <div class="card" id="sa-preview-card" style="display:none">
+    <div class="card-title">&#10003; Student Data Preview</div>
+    <div style="overflow-x:auto;margin-bottom:14px"><table><thead id="sa-preview-head"></thead><tbody id="sa-preview-body"></tbody></table></div>
+    <button class="btn btn-primary btn-xl" onclick="generateReport()">&#128269; Generate Diagnostic Report →</button>
+  </div>
+
+  <div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap">
+    <button class="btn btn-secondary" onclick="gotoStep(1)">← Back</button>
+    <button class="btn btn-orange" onclick="downloadSATemplate()">⬇ Download Student Answer Template</button>
+    <button class="btn btn-green"   onclick="loadSampleStudents()">Load Sample Students (Demo)</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ STEP 3 ═══════════════════════════ -->
+<div id="step3-content" style="display:none">
+
+  <div class="metric-grid" id="summary-cards"></div>
+
+  <!-- Batch AI Generation Progress Card -->
+  <div class="card" id="batch-ai-progress-card" style="display:none; margin-bottom:16px; background: linear-gradient(135deg, #f0fdf4 0%, #ccfbf1 100%); border: 1px solid #99f6e4; padding: 16px; border-radius: 8px;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+      <div style="font-weight:700; color:#115e59; font-size:13px;" id="batch-ai-progress-title">✨ Generating Batch AI Prescriptions...</div>
+      <button class="btn btn-secondary" style="padding:4px 10px; font-size:11px;" onclick="cancelBatchAIPrescriptions()">Stop Batch</button>
+    </div>
+    <div style="background:#e2e8f0; width:100%; height:10px; border-radius:5px; overflow:hidden; margin-bottom:6px;">
+      <div id="batch-ai-progress-bar" style="background:#0d9488; width:0%; height:100%; transition: width 0.3s ease;"></div>
+    </div>
+    <div style="display:flex; justify-content:space-between; font-size:11px; color:#14b8a6;">
+      <span id="batch-ai-progress-text">Processed: 0 / 0 students (0% done)</span>
+      <span id="batch-ai-progress-eta">ETA: Calculating...</span>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+    <div class="rtab active" id="rtab-a" onclick="showRTab('a')">Section A · Chapter Analysis</div>
+    <div class="rtab" id="rtab-b" onclick="showRTab('b')">Section B · Students</div>
+    <div class="rtab" id="rtab-c" onclick="showRTab('c')">Section C · Batch Insights</div>
+    <div class="rtab" id="rtab-d" onclick="showRTab('d')">Section D · Hardest Questions</div>
+    <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" style="background:linear-gradient(135deg,#0d9488,#0f766e);color:white;border:none" id="batch-ai-btn" onclick="triggerBatchAIPrescriptions()">✨ Batch AI Prescriptions</button>
+      <button class="btn" style="background:linear-gradient(135deg,#1B5E20,#43A047);color:white;border:none" onclick="genBatchDOC()">&#128196; Batch Summary DOC</button>
+      <button class="btn" style="background:linear-gradient(135deg,#B71C1C,#E53935);color:white;border:none" onclick="genAllStudentPDFs()">📦 All Student PDFs</button>
+      <button class="btn btn-green" onclick="exportExcel()">⬇ Export Full Report (.xlsx)</button>
+      <button class="btn btn-secondary" onclick="resetTool()">↩ New Analysis</button>
+    </div>
+  </div>
+
+  <div id="rpt-a">
+    <div class="card">
+      <div class="section-hdr">Section A — Chapter-Wise Error Analysis (Whole Batch)</div>
+      <div style="overflow-x:auto"><table>
+        <tr><th>Chapter</th><th>Questions</th><th class="ctr">Total Wrong</th><th class="ctr">Max Possible</th><th class="ctr">Error Rate</th><th style="min-width:150px">Bar</th><th class="ctr">Weakness Level</th></tr>
+        <tbody id="rpt-a-body"></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <div id="rpt-b" style="display:none">
+    <div class="card">
+      <div class="section-hdr">Section B — Individual Student Diagnosis & Personalised Action Plan</div>
+      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
+        <span style="font-size:12px;color:#666">Sort:</span>
+        <button class="btn btn-secondary" onclick="sortStudents('name')"  style="padding:4px 10px;font-size:11px">Name</button>
+        <button class="btn btn-secondary" onclick="sortStudents('score')" style="padding:4px 10px;font-size:11px">Marks ↑</button>
+        <button class="btn btn-secondary" onclick="sortStudents('wrong')" style="padding:4px 10px;font-size:11px">Wrong ↓</button>
+        <button class="btn btn-secondary" onclick="sortStudents('pri')"   style="padding:4px 10px;font-size:11px">Priority</button>
+        <span style="font-size:12px;color:#666;margin-left:8px">Filter:</span>
+        <select id="sb-filter" onchange="renderSecB(SORT_KEY)" style="padding:4px 10px;font-size:11px;border:1px solid #90CAF9;border-radius:6px;background:#E3F2FD;color:#0D47A1;font-weight:600">
+          <option value="all">All students</option>
+          <option value="high"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#E53935;vertical-align:middle"></span> High Risk only</option>
+          <option value="medium"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#FB8C00;vertical-align:middle"></span> Medium Risk only</option>
+          <option value="low"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#43A047;vertical-align:middle"></span> Low Risk only</option>
+        </select>
+        <input id="sb-search" type="text" placeholder="Search by name..." oninput="renderSecB(SORT_KEY)"
+          style="padding:4px 10px;font-size:11px;border:1px solid #ccd6e8;border-radius:6px;width:160px">
+      </div>
+      <div style="background:#f0f4fb;border-radius:6px;padding:8px 14px;margin-bottom:8px;font-size:11px;font-weight:700;color:#555;display:flex;justify-content:space-between;align-items:center">
+        <div id="rpt-b-header"></div>
+        <div id="rpt-b-count" style="font-weight:400;color:#888"></div>
+      </div>
+      <div id="rpt-b-body"></div>
+    </div>
+  </div>
+
+  <div id="rpt-c" style="display:none">
+    <div class="card">
+      <div class="section-hdr">Section C — Batch Intelligence Summary</div>
+      <div id="rpt-c-body"></div>
+    </div>
+    <div class="footer">Powered by BioRivet AI Diagnostic &nbsp;·&nbsp; Know More. Fear Less. &nbsp;·&nbsp; biorivet.com</div>
+  </div>
+
+  <div id="rpt-d" style="display:none">
+    <div class="card">
+      <div class="section-hdr">Section D — Hardest Questions (Batch-Wide)</div>
+      <p style="font-size:12px;color:#666;margin-bottom:14px">Questions where ≥50% of students who attempted got it wrong. These reveal either teaching gaps or genuinely high-difficulty concepts that need a dedicated class session.</p>
+      <div style="overflow-x:auto"><table>
+        <tr><th>Q No</th><th>Question</th><th>Chapter</th><th>Sub-Concept</th><th>Error Type</th><th class="ctr">Attempted</th><th class="ctr">Wrong</th><th class="ctr">Wrong Rate</th><th style="min-width:100px">Difficulty</th></tr>
+        <tbody id="rpt-d-body"></tbody>
+      </table></div>
+      <p id="rpt-d-empty" style="font-size:13px;color:#1B5E20;padding:14px;background:#E8F5E9;border-radius:6px;display:none">&#10003; No question had ≥50% wrong rate. The batch performed reasonably consistently across all questions.</p>
+    </div>
+    <div class="footer">Powered by BioRivet AI Diagnostic &nbsp;·&nbsp; Know More. Fear Less. &nbsp;·&nbsp; biorivet.com</div>
+  </div>
+
+</div><!-- /step3 -->
+</div><!-- /wrap -->
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════
+let QP   = null;   // {questions:[{qno,text,chapter,sub,errorType,ans}], chapGroups:{ch:[indices]}, chapColors:{}}
+let SA   = null;   // [{name, answers:[A/B/C/D...]}]
+let RPT  = null;   // computed report
+let SORT_KEY='name', SORT_DIR=1;
+let rawBlueprint = null;
+let rawAnswerKey = null;
+
+function normalizeQNo(val) {
+  return String(val || '').trim().toUpperCase().replace(/^Q\s*/i, '').replace(/^0+/, '');
+}
+
+const PALETTE = [
+  ['#FFF2CC','#7B6000'],['#DDEBF7','#1A3A5C'],['#E2EFDA','#1E4620'],
+  ['#FCE4D6','#7B2D00'],['#EDE7F6','#4A1E8C'],['#FCE4EC','#7B003C'],
+  ['#E8F5E9','#1B5E20'],['#E3F2FD','#0D47A1'],['#FFF8E1','#5D4037'],
+  ['#F3E5F5','#6A1B9A'],['#E0F7FA','#00695C'],['#FBE9E7','#BF360C'],
+];
+
+// ══════════════════════════════════════════════════════════════
+// STEP NAVIGATION
+// ══════════════════════════════════════════════════════════════
+function gotoStep(n) {
+  if (n > 1) {
+    const el = document.getElementById('step' + n + '-nav');
+    if (el && el.classList.contains('locked')) {
+      return;
+    }
+  }
+  [1,2,3].forEach(i => {
+    document.getElementById('step'+i+'-content').style.display = i===n?'':'none';
+  });
+  [1,2,3].forEach(i => {
+    const el = document.getElementById('step'+i+'-nav');
+    el.classList.remove('active','done','locked');
+    if(i < n) el.classList.add('done');
+    else if(i===n) el.classList.add('active');
+    else el.classList.add('locked');
+  });
+}
+
+function resetTool() { QP=null; SA=null; RPT=null; location.reload(); }
+
+// ══════════════════════════════════════════════════════════════
+// FILE READING (SheetJS)
+// ══════════════════════════════════════════════════════════════
+function loadFile(type, input) {
+  if(!input.files[0]) return;
+  readFileBytes(input.files[0], type);
+  input.value = '';
+}
+function readFileBytes(file, type) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  
+  if (type === 'qp' || type === 'ans') {
+    if (ext === 'docx') {
+      parseDocx(file, type);
+      return;
+    }
+    if (ext === 'doc') {
+      showErr(type, 'Older Word (.doc) files are not supported directly. Please convert your file to .docx or .pdf for AI extraction.');
+      return;
+    }
+    
+    if (!['xlsx', 'xls', 'csv'].includes(ext)) {
+      // PDF / Image / Document parsing via AI
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64Data = e.target.result.split(',')[1];
+        const mimeType = file.type || 'application/pdf';
+        
+        const nameEl = document.getElementById(type + '-name');
+        const boxEl = document.getElementById(type + '-box');
+        nameEl.textContent = '🧠 AI is reading and extracting data... Please wait.';
+        nameEl.style.display = 'block';
+        nameEl.style.color = 'var(--primary)';
+        boxEl.classList.add('drag');
+        
+        try {
+          const endpoint = type === 'qp' ? '/api/extract-questions' : '/api/extract-answers';
+          const data = await apiFetchWithRetry(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileData: base64Data, mimeType })
+          });
+          
+          if (data.error) throw new Error(data.error);
+          if (!data.results || data.results.length === 0) throw new Error("No data extracted by AI.");
+          
+          if (type === 'qp') {
+            parseAIQuestions(data.results, file.name);
+          } else {
+            parseAIAnswers(data.results, file.name);
+          }
+        } catch (err) {
+          showErr(type, 'AI Extraction Error: ' + err.message);
+          document.getElementById(type + '-name').style.display = 'none';
+          document.getElementById(type + '-box').classList.remove('drag');
+        }
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
+  }
+
+  // Normal Excel parsing
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb   = XLSX.read(data, {type:'array'});
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+      if(type==='qp') parseQP(rows, file.name);
+      else if(type==='ans') parseAnsKey(rows, file.name);
+      else            parseSA(rows, file.name);
+    } catch(err) { showErr(type, 'Could not read file: '+err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseDocx(file, type) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const arrayBuffer = e.target.result;
+    
+    const nameEl = document.getElementById(type + '-name');
+    const boxEl = document.getElementById(type + '-box');
+    nameEl.textContent = '🧠 AI is reading and extracting data from Word file... Please wait.';
+    nameEl.style.display = 'block';
+    nameEl.style.color = 'var(--primary)';
+    boxEl.classList.add('drag');
+    
+    mammoth.extractRawText({ arrayBuffer: arrayBuffer })
+      .then(async function(result) {
+        const text = result.value; // The raw text
+        if (!text || text.trim().length === 0) {
+          throw new Error("The Word document appears to be empty or contains no extractable text.");
+        }
+        
+        try {
+          const endpoint = type === 'qp' ? '/api/extract-questions' : '/api/extract-answers';
+          const data = await apiFetchWithRetry(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ textContent: text })
+          });
+          
+          if (data.error) throw new Error(data.error);
+          if (!data.results || data.results.length === 0) throw new Error("No data extracted by AI.");
+          
+          if (type === 'qp') {
+            parseAIQuestions(data.results, file.name);
+          } else {
+            parseAIAnswers(data.results, file.name);
+          }
+        } catch (err) {
+          showErr(type, 'AI Extraction Error: ' + err.message);
+          nameEl.style.display = 'none';
+          boxEl.classList.remove('drag');
+        }
+      })
+      .catch(function(err) {
+        showErr(type, 'Word File Error: ' + err.message);
+        document.getElementById(type + '-name').style.display = 'none';
+        document.getElementById(type + '-box').classList.remove('drag');
+      });
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseAIQuestions(results, fname) {
+  hideMsg('qp');
+  const questions = [];
+  results.forEach((r, idx) => {
+    questions.push({
+      qno: String(r.qno || ('Q' + (idx + 1))),
+      text: String(r.text || ''),
+      subject: String(r.subject || 'Biology'),
+      chapter: String(r.chapter || 'Unknown'),
+      sub: String(r.subConcept || ''),
+      errorType: String(r.errorType || 'Memory'),
+      cognitiveType: String(r.cognitiveType || 'Concept Application'),
+      ans: '?',
+      needsTagging: false,
+      cognitiveLevel: '—', ncertDirectness: '—', formatType: '—', targetTime: '—'
+    });
+  });
+
+  if(questions.length===0) {
+    showErr('qp', 'No questions could be extracted from this document by the AI.');
+    document.getElementById('qp-name').style.display = 'none';
+    document.getElementById('qp-box').classList.remove('loaded');
+    return;
+  }
+
+  rawBlueprint = questions;
+
+  document.getElementById('qp-name').textContent = '✓ '+fname+' — '+questions.length+' questions loaded via AI';
+  document.getElementById('qp-name').style.display='block';
+  document.getElementById('qp-name').style.color = '#166534';
+  document.getElementById('qp-box').classList.remove('drag');
+  document.getElementById('qp-box').classList.add('loaded');
+  
+  mergeMasterKey();
+}
+
+function parseAIAnswers(results, fname) {
+  hideMsg('ans');
+  const answersList = [];
+  results.forEach((r, idx) => {
+    const ans = String(r.ans || '?').toUpperCase();
+    const ansValid = ['A','B','C','D'].includes(ans);
+    answersList.push({
+      qNo: String(r.qno || ('Q' + (idx + 1))),
+      ans: ansValid ? ans : '?'
+    });
+  });
+
+  if(answersList.length===0) {
+    showErr('ans', 'No answers could be extracted from this document by the AI.');
+    document.getElementById('ans-name').style.display = 'none';
+    document.getElementById('ans-box').classList.remove('loaded');
+    return;
+  }
+
+  rawAnswerKey = answersList;
+
+  document.getElementById('ans-name').textContent = '✓ '+fname+' — '+answersList.length+' answers loaded via AI';
+  document.getElementById('ans-name').style.display='block';
+  document.getElementById('ans-name').style.color = '#166534';
+  document.getElementById('ans-box').classList.remove('drag');
+  document.getElementById('ans-box').classList.add('loaded');
+  
+  showOk('ans', 'Successfully extracted ' + answersList.length + ' answers using Gemini AI.');
+  mergeMasterKey();
+}
+
+function parseAnsKey(rows, fname) {
+  hideMsg('ans');
+  if(rows.length < 2) { showErr('ans','File has fewer than 2 rows.'); return; }
+
+  // Find header row — look for a row that has at least 1 recognisable column keyword
+  const knownHeaders = ['q no','qno','correct','option','ans','key','correct option','correct_option','answer','#','no','question','q'];
+  let hRow = 0;
+  for(let i=0;i<Math.min(rows.length,8);i++) {
+    const rowLower = rows[i].map(c => String(c).trim().toLowerCase());
+    const hits = rowLower.filter(c => knownHeaders.some(k => c.includes(k))).length;
+    if(hits >= 1) { hRow=i; break; }
+  }
+  const header = rows[hRow].map(c => String(c).trim().toLowerCase());
+
+  const col = name => {
+    const aliases = {
+      qno: ['q no','qno','q_no','question no','question number','question','q','no','#','sl'],
+      ans: ['correct option','correct_option','option','ans','correct','answer','key','solution']
+    };
+    const list = aliases[name] || [name];
+    for(const a of list) { const i=header.indexOf(a); if(i>=0) return i; }
+    for(const a of list) { const i=header.findIndex(h=>h.includes(a)); if(i>=0) return i; }
+    return -1;
+  };
+
+  const cQno = col('qno');
+  const cAns = col('ans');
+
+  if(cQno < 0 || cAns < 0) {
+    showErr('ans',
+      'Could not find Question No or Answer columns in Answer Key. Headers detected: [' + header.filter(Boolean).join(', ') + '].'
+    );
+    return;
+  }
+
+  const answersList = [];
+  for(let r=hRow+1; r<rows.length; r++) {
+    const row = rows[r];
+    const qNo = String(row[cQno]||'').trim();
+    const ans = String(row[cAns]||'').trim().toUpperCase();
+    if(!qNo || !ans) continue;
+    answersList.push({ qNo, ans });
+  }
+
+  if(answersList.length === 0) { showErr('ans','No answers found in Answer Key.'); return; }
+
+  rawAnswerKey = answersList;
+  document.getElementById('ans-name').textContent = '✓ '+fname+' — '+answersList.length+' answers loaded';
+  document.getElementById('ans-name').style.display='block';
+  document.getElementById('ans-box').classList.add('loaded');
+  showOk('ans', answersList.length+' answers loaded.');
+
+  mergeMasterKey();
+}
+
+function mergeMasterKey() {
+  if (!rawBlueprint) return;
+  
+  const questions = rawBlueprint.map(q => {
+    let matchedAns = '?';
+    if (rawAnswerKey) {
+      const match = rawAnswerKey.find(a => normalizeQNo(a.qNo) === normalizeQNo(q.qno));
+      if (match) {
+        matchedAns = match.ans;
+      } else {
+        console.warn(`[Array-Join Warning] Missing answer key for question "${q.qno}". Treating as unkeyed.`);
+        matchedAns = "?";
+      }
+    }
+    return {
+      ...q,
+      ans: matchedAns
+    };
+  });
+
+  QP = { questions, chapGroups: {}, chapColors: {} };
+  buildChapGroups();
+
+  if (rawBlueprint && rawAnswerKey) {
+    document.getElementById('step2-nav').classList.remove('locked');
+    document.getElementById('next-step-btn').disabled = false;
+    showOk('qp', `Success: Joined ${questions.length} questions from Blueprint with Answer Key.`);
+  } else {
+    showOk('qp', `${questions.length} questions loaded from Blueprint. Please upload the Answer Key to proceed.`);
+  }
+
+  const hasText = questions.some(q => q.text);
+  renderQPPreview(hasText);
+}
+
+// ══════════════════════════════════════════════════════════════
+// PARSE QUESTION PAPER
+// ══════════════════════════════════════════════════════════════
+function parseQP(rows, fname) {
+  hideMsg('qp');
+  if(rows.length < 2) { showErr('qp','File has fewer than 2 rows.'); return; }
+
+  // Find header row — look for a row that has at least 2 recognisable column keywords
+  // This handles files with title rows, merged cells, or blank rows above the header
+  const knownHeaders = ['q no','qno','question','answer','chapter','topic','sub','error','key','ans','no','#','text','description'];
+  let hRow = 0;
+  for(let i=0;i<Math.min(rows.length,8);i++) {
+    const rowLower = rows[i].map(c => String(c).trim().toLowerCase());
+    const hits = rowLower.filter(c => knownHeaders.some(k => c.includes(k))).length;
+    if(hits >= 2) { hRow=i; break; }
+  }
+  const header = rows[hRow].map(c => String(c).trim().toLowerCase());
+
+  // Map columns — case-insensitive partial match for robustness
+  const col = name => {
+    const aliases = {
+      qno:           ['q no','qno','q_no','question no','question number','no','#','sl'],
+      text:          ['question','question text','text','description','q text','stem'],
+      chapter:       ['chapter','topic','unit'],
+      sub:           ['sub-concept','sub concept','subconcept','subtopic','sub topic','concept'],
+      errtype:       ['error type','errortype','error_type','error','type','mistake'],
+      ans:           ['answer','correct answer','answer key','key','ans','correct','solution'],
+      subject:       ['subject','subj','discipline'],
+      cognitivetype: ['cognitive_type','cognitive type','cognitive_style','cognitive style','cognitive']
+    };
+    const list = aliases[name] || [name];
+    // Exact match first
+    for(const a of list) { const i=header.indexOf(a); if(i>=0) return i; }
+    // Partial match fallback
+    for(const a of list) { const i=header.findIndex(h=>h.includes(a)); if(i>=0) return i; }
+    return -1;
+  };
+
+  const cQno=col('qno'), cText=col('text'), cChap=col('chapter');
+  const cSub=col('sub'), cErr=col('errtype'), cAns=col('ans');
+  const cSubj=col('subject'), cCogType=col('cognitivetype');
+
+  // Need at least one of: question text OR answer column
+  if(cText<0 && cAns<0) {
+    showErr('qp',
+      'Could not find Question or Answer columns. Headers detected: [' + header.filter(Boolean).join(', ') + ']. ' +
+      'Make sure your file has columns named Question and Answer (or similar).'
+    );
+    return;
+  }
+
+  const questions = [];
+  let needsAutoTag = false;
+
+  for(let r=hRow+1; r<rows.length; r++) {
+    const row = rows[r];
+    const text = cText>=0 ? String(row[cText]||'').trim() : '';
+    let ans    = cAns>=0  ? String(row[cAns]||'').trim().toUpperCase() : '';
+    let chap   = cChap>=0 ? String(row[cChap]||'').trim() : '';
+    const sub  = cSub>=0  ? String(row[cSub]||'').trim() : '';
+    let err    = cErr>=0  ? String(row[cErr]||'').trim() : '';
+    const subject = cSubj>=0 ? String(row[cSubj]||'').trim() : 'Biology';
+    const cognitiveType = cCogType>=0 ? String(row[cCogType]||'').trim() : 'Concept Application';
+
+    // Skip rows with no useful data at all
+    if(!ans && !text && !chap) continue;
+
+    const qno = cQno>=0 ? String(row[cQno]||'').trim() : 'Q'+(questions.length+1);
+
+    // Only flag needsAutoTag for fields that actually exist in the file but are blank on this row
+    // Don't penalise files that simply don't have those columns
+    const ansValid   = ['A','B','C','D'].includes(ans);
+    const chapMissing = cChap>=0 && !chap;   // column exists but cell is blank
+    const errMissing  = cErr>=0  && !err;    // column exists but cell is blank
+    const ansMissing  = cAns>=0  && !ansValid; // column exists but cell is blank/invalid
+
+    if(chapMissing || errMissing || ansMissing) {
+      if(text) needsAutoTag = true;
+    }
+
+    // Set fallbacks without overwriting valid data
+    if(!ansValid) ans = ans || '?';
+    if(!chap)     chap = 'Unknown';
+    if(!err)      err  = cErr>=0 ? 'Unknown' : 'Memory'; // default Memory if column not in file
+
+    questions.push({
+      qno, text, subject, chapter:chap, sub, errorType:err, cognitiveType, ans,
+      needsTagging: (!ansValid || chapMissing || errMissing),
+      cognitiveLevel: '—', ncertDirectness: '—', formatType: '—', targetTime: '—'
+    });
+  }
+
+  if(questions.length===0) {
+    showErr('qp',
+      'No valid questions found. Check that data starts on the row after the header. ' +
+      'Header detected on row '+(hRow+1)+': ['+header.filter(Boolean).slice(0,6).join(', ')+']'
+    );
+    return;
+  }
+
+  rawBlueprint = questions;
+
+  document.getElementById('qp-name').textContent = '✓ '+fname+' — '+questions.length+' questions loaded';
+  document.getElementById('qp-name').style.display='block';
+  document.getElementById('qp-box').classList.add('loaded');
+  
+  mergeMasterKey();
+}
+
+function buildChapGroups() {
+  const chapGroups = {}, chapColors = {};
+  let ci=0;
+  QP.questions.forEach((q,i) => {
+    if(!chapGroups[q.chapter]) {
+      chapGroups[q.chapter] = [];
+      const [bg,tc] = PALETTE[ci % PALETTE.length]; ci++;
+      chapColors[q.chapter] = {bg,tc};
+    }
+    chapGroups[q.chapter].push(i);
+  });
+  QP.chapGroups = chapGroups;
+  QP.chapColors = chapColors;
+}
+
+async function apiFetchWithRetry(url, options, retries = 3, backoff = 30000) {
+  try {
+    const res = await fetch(url, options);
+    const data = await res.json();
+    if (res.status === 429 || (data.error && String(data.error).includes('429'))) {
+      if (retries > 0) {
+        document.getElementById('ai-tag-status').innerHTML = `<span style="color:#E65100">Rate limit reached. Auto-resuming in ${backoff/1000} seconds... (${retries} retries left)</span>`;
+        await new Promise(resolve => setTimeout(resolve, backoff));
+        return apiFetchWithRetry(url, options, retries - 1, backoff);
+      } else {
+        return { error: 'Rate limit exceeded and max retries reached.' };
+      }
+    }
+    return data;
+  } catch (err) {
+    return { error: 'Network error communicating with backend.' };
+  }
+}
+
+async function runTagging(tagType, fieldsToCheck, btnId) {
+  const btn = document.getElementById(btnId);
+  const status = document.getElementById('ai-tag-status');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.innerHTML = `<span style="opacity:0.7">Loading...</span>`;
+  
+  const isMissing = (val) => !val || val === 'Unknown' || val === '?' || val === '—';
+  const questionsToTag = QP.questions.filter(q => q.text && fieldsToCheck.some(f => isMissing(q[f])));
+  
+  if (questionsToTag.length === 0) {
+      status.innerHTML = `<span style="color:#1B5E20">All questions already have ${tagType} tags.</span>`;
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+      return;
+  }
+
+  status.innerHTML = `<span style="color:#1F3864">Connecting to AI server... (Processing ${questionsToTag.length} questions for ${tagType})</span>`;
+
+  const data = await apiFetchWithRetry('/api/auto-tag', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ questions: questionsToTag.map(q => ({ qno: q.qno, text: q.text, subject: q.subject || 'Biology' })), tagType })
+  });
+
+  if (data.error) {
+      status.innerHTML = `<span style="color:#B71C1C">Error: ${data.error}</span>`;
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+      return;
+  }
+
+  const qnoMatch = (a, b) => {
+      const clean = val => String(val || '').trim().toUpperCase().replace(/^Q\s*/, '').replace(/^0+/, '');
+      return clean(a) === clean(b);
+  };
+
+  data.results.forEach(res => {
+      const q = QP.questions.find(q => qnoMatch(q.qno, res.qno));
+      if (q) {
+          if (tagType === 'chapter') {
+              if (res.chapter) q.chapter = res.chapter;
+              if (res.subConcept) q.sub = res.subConcept;
+              if (res.subject) q.subject = res.subject;
+          } else if (tagType === 'errorType') {
+              if (res.errorType) q.errorType = res.errorType;
+          } else if (tagType === 'answer') {
+              if (res.ans) q.ans = res.ans;
+          } else if (tagType === 'cognitive') {
+              if (res.cognitiveLevel) q.cognitiveType = res.cognitiveLevel;
+          } else if (tagType === 'ncert') {
+              if (res.ncertDirectness) q.ncertDirectness = res.ncertDirectness;
+          } else if (tagType === 'format') {
+              if (res.formatType) q.formatType = res.formatType;
+              if (res.targetTime) q.targetTime = res.targetTime;
+          }
+      }
+  });
+
+  if (tagType === 'chapter') {
+      buildChapGroups();
+  }
+  
+  renderQPPreview(true);
+  
+  status.innerHTML = `<span style="color:#1B5E20">✨ AI Auto-Tagging for ${tagType} Complete!</span>`;
+  btn.disabled = false;
+  btn.innerHTML = originalText;
+}
+
+function renderQPPreview(showTagPanel = false) {
+  document.getElementById('qp-preview-card').style.display='';
+  document.getElementById('ai-tag-prompt').style.display = showTagPanel ? 'block' : 'none';
+  document.getElementById('qp-preview-title').innerHTML = '&#10003; Question Bank Preview';
+  
+  const head = document.getElementById('qp-preview-head');
+  const body = document.getElementById('qp-preview-body');
+
+  head.innerHTML = '<tr><th>Q No</th><th>Question</th><th>Subject</th><th>Chapter</th><th>Sub-Concept</th><th>Error Type</th><th>Cognitive Type</th><th>NCERT Directness</th><th class="ctr">Answer</th></tr>';
+  body.innerHTML = '';
+  const show = Math.min(QP.questions.length, 20);
+  QP.questions.slice(0,show).forEach(q => {
+    const {bg,tc} = QP.chapColors[q.chapter] || {bg:'#f0f0f0', tc:'#333'};
+    const ec = q.errorType==='Memory'?'#FFF2CC':q.errorType==='Conceptual'?'#FCE4D6':'#E2EFDA';
+    const et = q.errorType==='Memory'?'#7B6000':q.errorType==='Conceptual'?'#7B2D00':'#1E4620';
+    body.innerHTML += `<tr>
+      <td style="font-weight:700;color:#2E5EA8">${q.qno}</td>
+      <td style="max-width:300px">${q.text||'—'}</td>
+      <td><span style="background:#e0f7fa;color:#006064;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">${q.subject || 'Biology'}</span></td>
+      <td><span class="ch-badge" style="background:${bg};color:${tc}">${q.chapter}</span></td>
+      <td>${q.sub||'—'}</td>
+      <td><span style="background:${ec};color:${et};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">${q.errorType}</span></td>
+      <td><span style="background:#e8eaf6;color:#1a237e;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">${q.cognitiveType || 'Concept Application'}</span></td>
+      <td>${q.ncertDirectness||'—'}</td>
+      <td class="ctr" style="font-weight:700;font-size:14px;color:#1F3864">${q.ans}</td>
+    </tr>`;
+  });
+  if(QP.questions.length>show) {
+    body.innerHTML += `<tr><td colspan="9" style="color:#999;font-style:italic">… and ${QP.questions.length-show} more questions</td></tr>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// PARSE STUDENT ANSWERS
+// ══════════════════════════════════════════════════════════════
+function sanitizeOMRAnswer(val) {
+  if (val === null || val === undefined) return '';
+  const cleaned = String(val).trim().toUpperCase();
+  if (cleaned.length > 1) {
+    return 'INVALID_DOUBLE_BUBBLE';
+  }
+  return cleaned;
+}
+
+function parseSA(rows, fname) {
+  hideMsg('sa');
+  if(!QP) { showErr('sa','Please upload the question paper first.'); return; }
+  if(rows.length < 2) { showErr('sa','File has fewer than 2 rows.'); return; }
+
+  // Header row of OMR sheet
+  const header = rows[0].map(c => String(c).trim());
+
+  // Find where student name is (usually the first column)
+  const nameColIdx = header.findIndex(h => h.toLowerCase().includes('name')) >= 0 
+                     ? header.findIndex(h => h.toLowerCase().includes('name')) 
+                     : 0;
+
+  const N = QP.questions.length;
+  const students = [];
+
+  for(let r=1; r<rows.length; r++) {
+    const row = rows[r];
+    const name = String(row[nameColIdx]||'').trim();
+    if(!name) continue;
+
+    const answers = [];
+    // For each question in QP.questions, find the matching column in OMR sheet
+    QP.questions.forEach(q => {
+      // Find index in header where normalized header matches normalized q.qno
+      const colIdx = header.findIndex((h, idx) => idx !== nameColIdx && normalizeQNo(h) === normalizeQNo(q.qno));
+      if (colIdx >= 0) {
+        const raw = sanitizeOMRAnswer(row[colIdx]);
+        if (raw === 'INVALID_DOUBLE_BUBBLE') {
+          answers.push('INVALID_DOUBLE_BUBBLE');
+        } else {
+          answers.push(['A','B','C','D'].includes(raw) ? raw : '');
+        }
+      } else {
+        // Missing column in OMR sheet for this question
+        answers.push('');
+      }
+    });
+
+    students.push({name, answers});
+  }
+
+  if(students.length===0) { showErr('sa','No student rows found. Check CSV format.'); return; }
+
+  SA = students;
+  document.getElementById('sa-name').textContent = '✓ '+fname+' — '+students.length+' students loaded';
+  document.getElementById('sa-name').style.display='block';
+  document.getElementById('sa-box').classList.add('loaded');
+  showOk('sa', students.length+' students loaded. '+N+' answer columns expected.');
+  renderSAPreview();
+}
+// ════════════════════
+// PARSE STUDENT ANSWERS
+// ══════════════════════════════════════════════════════════════
+function sanitizeOMRAnswer(val) {
+  if (val === null || val === undefined) return '';
+  const cleaned = String(val).trim().toUpperCase();
+  if (cleaned.length > 1) {
+    return 'INVALID_DOUBLE_BUBBLE';
+  }
+  return cleaned;
+}
+
+function parseSA(rows, fname) {
+  hideMsg('sa');
+  if(!QP) { showErr('sa','Please upload the question paper first.'); return; }
+  if(rows.length < 2) { showErr('sa','File has fewer than 2 rows.'); return; }
+
+  const header = rows[0].map(c => String(c).trim());
+  const N = QP.questions.length;
+
+  const students = [];
+  for(let r=1; r<rows.length; r++) {
+    const row = rows[r];
+    const name = String(row[0]||'').trim();
+    if(!name) continue;
+    const answers = [];
+    for(let q=0; q<N; q++) {
+      const raw = sanitizeOMRAnswer(row[q+1]);
+      if (raw === 'INVALID_DOUBLE_BUBBLE') {
+        answers.push('INVALID_DOUBLE_BUBBLE');
+      } else {
+        answers.push(['A','B','C','D'].includes(raw) ? raw : '');
+      }
+    }
+    students.push({name, answers});
+  }
+
+  if(students.length===0) { showErr('sa','No student rows found. Check CSV format.'); return; }
+
+  SA = students;
+  document.getElementById('sa-name').textContent = '✓ '+fname+' — '+students.length+' students loaded';
+  document.getElementById('sa-name').style.display='block';
+  document.getElementById('sa-box').classList.add('loaded');
+  showOk('sa', students.length+' students loaded. '+N+' answer columns expected.');
+  renderSAPreview();
+}
+
+function renderSAPreview() {
+  document.getElementById('sa-preview-card').style.display='';
+  const head = document.getElementById('sa-preview-head');
+  const body = document.getElementById('sa-preview-body');
+  const ANSKEY = QP.questions.map(q=>q.ans);
+  const showQ  = Math.min(QP.questions.length, 12);
+  const showS  = Math.min(SA.length, 8);
+
+  head.innerHTML = '<tr><th>Student</th>'+QP.questions.slice(0,showQ).map(q=>`<th class="ctr">${q.qno}</th>`).join('')+(QP.questions.length>showQ?'<th>…</th>':'')+'</tr>';
+  body.innerHTML = '';
+  SA.slice(0,showS).forEach(s => {
+    let row = `<td style="font-weight:700;white-space:nowrap">${s.name}</td>`;
+    s.answers.slice(0,showQ).forEach((a,i) => {
+      const ok=a===ANSKEY[i], blank=a==='', db=a==='INVALID_DOUBLE_BUBBLE';
+      const c=blank?'#999':db?'#7f1d1d':ok?'#1B5E20':'#B71C1C', bg=blank?'':db?'#fee2e2':ok?'#E8F5E9':'#FFEBEE';
+      row += `<td class="ctr" style="color:${c};background:${bg};font-weight:600">${db?'DB':(a||'–')}</td>`;
+    });
+    if(QP.questions.length>showQ) row += `<td class="ctr" style="color:#999">…</td>`;
+    body.innerHTML += `<tr>${row}</tr>`;
+  });
+  if(SA.length>showS) body.innerHTML += `<tr><td colspan="${showQ+2}" style="color:#999;font-style:italic;padding:8px">… and ${SA.length-showS} more students</td></tr>`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// COMPUTE REPORT
+// ══════════════════════════════════════════════════════════════
+function computeReport() {
+  const {questions, chapGroups, chapColors} = QP;
+  const ANSKEY = questions.map(q=>q.ans);
+  const N = SA.length;
+
+  // Per-student — NEET scoring: +4 correct, -1 wrong, 0 unattempted
+  const studentReports = SA.map(st => {
+    const chapWrong = {}, chapCorrect = {}, chapUnattempted = {};
+    // Per-student sub-concept and error-type tallies
+    const subWrong = {}; // { 'Enzyme Action': 3 }
+    const errWrong = { Memory:0, Conceptual:0, Application:0, Unknown:0 };
+    const subScores = {};
+    const cogStats = { Recall:{correct:0,total:0}, Analysis:{correct:0,total:0}, Evaluation:{correct:0,total:0}, Unknown:{correct:0,total:0} };
+    const fmtStats = {};
+    Object.keys(chapGroups).forEach(ch => { chapWrong[ch]=0; chapCorrect[ch]=0; chapUnattempted[ch]=0; });
+    let totalWrong=0, totalCorrect=0, totalUnattempted=0;
+    questions.forEach((q,qi) => {
+      const a = st.answers[qi];
+      const cog = q.cognitiveLevel && q.cognitiveLevel !== '—' ? q.cognitiveLevel : 'Unknown';
+      const fmt = q.formatType && q.formatType !== '—' ? q.formatType : 'Unknown';
+      if(!cogStats[cog]) cogStats[cog] = {correct:0,total:0};
+      if(!fmtStats[fmt]) fmtStats[fmt] = {c:0,t:0};
+      cogStats[cog].total++;
+      fmtStats[fmt].t++;
+
+      if(a==='') {
+        totalUnattempted++;
+        chapUnattempted[q.chapter]++;
+      } else if(a!==ANSKEY[qi]) {
+        totalWrong++;
+        chapWrong[q.chapter]++;
+        // sub-concept tracking
+        const sub = q.sub || '—';
+        if(sub && sub!=='—') subWrong[sub] = (subWrong[sub]||0)+1;
+        // error type tracking
+        const et = q.errorType||'Unknown';
+        errWrong[et] = (errWrong[et]||0)+1;
+      } else {
+        totalCorrect++;
+        chapCorrect[q.chapter]++;
+        const sub = q.sub || '—';
+        if(sub && sub !== '—') subScores[sub] = (subScores[sub]||0)+1;
+        cogStats[cog].correct++;
+        fmtStats[fmt].c++;
+      }
+    });
+    // NEET marks: +4 per correct, -1 per wrong
+    const neetMarks = (totalCorrect * 4) - (totalWrong * 1);
+    const maxMarks  = questions.length * 4;
+    const pct = Math.round((totalCorrect / questions.length) * 100);
+    const marksPct = Math.round((neetMarks / maxMarks) * 100);
+
+    // Fix #4: rank chapters by wrong RATE (wrong/total in chapter), not raw count
+    const chapTotals = {};
+    Object.entries(chapGroups).forEach(([ch,idxArr]) => { chapTotals[ch] = idxArr.length; });
+    const rankedByRate = Object.entries(chapWrong)
+      .map(([ch,w]) => [ch, w, chapTotals[ch]>0 ? w/chapTotals[ch] : 0])
+      .sort((a,b) => b[2]-a[2]);
+    const w1 = rankedByRate[0][0];
+    const w2 = rankedByRate.length>1 ? rankedByRate[1][0] : rankedByRate[0][0];
+
+    // Fix #2: NEET-calibrated priority thresholds
+    // NEET max = questions*4. Bands: <180 marks (~25%) = high, <360 (~50%) = medium, >=360 = low
+    // Scaled to whatever question count is in the paper
+    const marksBand = neetMarks / maxMarks;
+    const priority = marksBand < 0.25 ? 'high'
+                   : marksBand < 0.50 ? 'medium' : 'low';
+
+    // Top sub-concepts wrong
+    const topSubs = Object.entries(subWrong).sort((a,b)=>b[1]-a[1]).slice(0,3);
+
+    // Subject-level accuracy (for shareable card bars)
+    const subjectTotals   = { Physics:0, Chemistry:0, Botany:0, Zoology:0 };
+    const subjectCorrects = { Physics:0, Chemistry:0, Botany:0, Zoology:0 };
+    questions.forEach((q, qi) => {
+      const subj = q.subject || '';
+      if (!subjectTotals.hasOwnProperty(subj)) return;
+      subjectTotals[subj]++;
+      if (st.answers[qi] === ANSKEY[qi]) subjectCorrects[subj]++;
+    });
+    const subjectPct = {};
+    Object.keys(subjectTotals).forEach(subj => {
+      subjectPct[subj] = subjectTotals[subj] > 0
+        ? Math.round((subjectCorrects[subj] / subjectTotals[subj]) * 100) : 0;
+    });
+
+    // Compile exact questions missed per student with metadata
+    const missedQuestions = [];
+    questions.forEach((q, qi) => {
+      const a = st.answers[qi];
+      if (a !== '' && a !== ANSKEY[qi]) {
+        missedQuestions.push({
+          qno: q.qno,
+          text: q.text || '—',
+          subject: q.subject || 'Biology',
+          chapter: q.chapter,
+          sub: q.sub || '—',
+          errorType: q.errorType,
+          cognitiveType: q.cognitiveType || 'Concept Application',
+          cognitiveLevel: q.cognitiveLevel || '—',
+          ncertDirectness: q.ncertDirectness || '—',
+          formatType: q.formatType || '—',
+          correctAnswer: ANSKEY[qi],
+          studentAnswer: a === 'INVALID_DOUBLE_BUBBLE' ? 'DB' : a
+        });
+      }
+    });
+
+    return {
+      name: st.name,
+      score: totalCorrect,       // raw correct count
+      neetMarks,                  // NEET-style marks (+4/-1)
+      maxMarks,
+      totalWrong, totalCorrect, totalUnattempted,
+      pct, marksPct,
+      chapWrong, chapCorrect, chapUnattempted, chapTotals,
+      w1, w2,
+      priority,
+      answers: st.answers,
+      subWrong, topSubs, errWrong, subScores, cogStats, fmtStats,
+      rankedByRate,                // [[ch, wrongCount, wrongRate], ...]
+      subjectPct,                  // { Physics:45, Chemistry:60, Botany:73, Zoology:80 }
+      missedQuestions
+    };
+  });
+
+  const batchSubMax = {};
+  studentReports.forEach(st => {
+    Object.entries(st.subScores).forEach(([sub, score]) => {
+      batchSubMax[sub] = Math.max(batchSubMax[sub] || 0, score);
+    });
+  });
+  studentReports.forEach(st => { st.batchSubMax = batchSubMax; });
+
+  // Chapter-level stats
+  const chapterStats = {};
+  Object.entries(chapGroups).forEach(([ch, indices]) => {
+    let totalWrong=0, totalCorrect=0, totalUnattempted=0;
+    const max = indices.length * N;
+    SA.forEach(st => {
+      indices.forEach(qi => {
+        const a = st.answers[qi];
+        if(a==='') totalUnattempted++;
+        else if(a!==ANSKEY[qi]) totalWrong++;
+        else totalCorrect++;
+      });
+    });
+    const pct = max>0 ? totalWrong/max : 0;
+    chapterStats[ch] = {
+      totalWrong, totalCorrect, totalUnattempted, max, pct,
+      level: pct>=0.6?'critical':pct>=0.4?'needs':'strong',
+      qs: indices.length===1 ? questions[indices[0]].qno
+                             : questions[indices[0]].qno+' – '+questions[indices[indices.length-1]].qno,
+      count: indices.length,
+    };
+  });
+
+  // Fix #5: Question-level hardness — questions most of the batch got wrong
+  const questionStats = questions.map((q,qi) => {
+    let wrong=0, attempted=0;
+    SA.forEach(st => {
+      const a = st.answers[qi];
+      if(a!=='') { attempted++; if(a!==ANSKEY[qi]) wrong++; }
+    });
+    const hardness = attempted>0 ? wrong/attempted : 0;
+    return { qno:q.qno, text:q.text, subject:q.subject, chapter:q.chapter, sub:q.sub, errorType:q.errorType, cognitiveType:q.cognitiveType,
+             wrong, attempted, hardness };
+  });
+  // Top 10 hardest questions (≥50% of those who attempted got it wrong, min 2 students)
+  const hardestQs = questionStats
+    .filter(q => q.attempted >= Math.max(2, Math.ceil(N*0.3)) && q.hardness >= 0.5)
+    .sort((a,b) => b.hardness - a.hardness)
+    .slice(0, 10);
+
+  // Error type breakdown (batch)
+  let mem=0,con=0,app=0;
+  SA.forEach(st => {
+    questions.forEach((q,qi) => {
+      const a=st.answers[qi];
+      if(a!==''&&a!==ANSKEY[qi]) {
+        if(q.errorType==='Memory') mem++;
+        else if(q.errorType==='Conceptual') con++;
+        else app++;
+      }
+    });
+  });
+
+  const worstCh  = Object.entries(chapterStats).sort((a,b)=>b[1].pct-a[1].pct)[0][0];
+  const bestCh   = Object.entries(chapterStats).sort((a,b)=>a[1].pct-b[1].pct)[0][0];
+  const highRisk = studentReports.filter(s=>s.priority==='high').length;
+  const medRisk  = studentReports.filter(s=>s.priority==='medium').length;
+  const lowRisk  = studentReports.filter(s=>s.priority==='low').length;
+  // Fix #1: avg score in NEET marks
+  const avgNeetMarks = Math.round(studentReports.reduce((a,s)=>a+s.neetMarks,0)/N);
+  const avgScore = avgNeetMarks; // kept for compat
+
+  return {chapterStats, studentReports, worstCh, bestCh,
+          highRisk, medRisk, lowRisk, avgScore, avgNeetMarks, mem, con, app, N,
+          totalQ: questions.length, chapColors, questionStats, hardestQs};
+}
+
+// ══════════════════════════════════════════════════════════════
+// RENDER REPORT
+// ══════════════════════════════════════════════════════════════
+// renderSummaryCards defined below
+
+function renderSummaryCards() {
+  const r=RPT;
+  const avgPct = Math.round((r.avgNeetMarks / (r.totalQ*4))*100);
+  document.getElementById('summary-cards').innerHTML = [
+    {l:'Students Analysed',   v:r.N,                    s:'total in this batch'},
+    {l:'Avg NEET Marks',      v:r.avgNeetMarks+' / '+(r.totalQ*4), s:'batch average (+4/−1 scoring)', warn: r.avgNeetMarks < r.totalQ},
+    {l:'High Risk Students',  v:r.highRisk,             s:'need urgent intervention', danger:true},
+    {l:'Weakest Chapter',     v:r.worstCh,              s:'highest batch error rate', small:true},
+  ].map(c=>`<div class="metric">
+    <div class="mlabel">${c.l}</div>
+    <div class="mval" style="${c.danger?'color:#B71C1C':c.warn?'color:#E65100':''}${c.small?';font-size:15px':''}">${c.v}</div>
+    <div class="msub">${c.s}</div>
+  </div>`).join('');
+}
+
+function renderSecA() {
+  const tbody = document.getElementById('rpt-a-body');
+  tbody.innerHTML='';
+  // Fix 8: sort chapters by error rate descending so worst chapter is always first
+  const sortedChapters = Object.entries(RPT.chapterStats).sort((a,b) => b[1].pct - a[1].pct);
+  sortedChapters.forEach(([ch,s]) => {
+    const pct=Math.round(s.pct*100);
+    const {bg,tc}=RPT.chapColors[ch];
+    let bCls, bColor, barC;
+    if(s.level==='critical'){bCls='b-red';barC='#E53935';}
+    else if(s.level==='needs'){bCls='b-yellow';barC='#FB8C00';}
+    else{bCls='b-green';barC='#43A047';}
+    const lbl=s.level==='critical'?'<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#E53935;margin-right:4px"></span>Critical Gap':s.level==='needs'?'<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#FB8C00;margin-right:4px"></span>Needs Attention':'<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#43A047;margin-right:4px"></span>Strong';
+    tbody.innerHTML+=`<tr>
+      <td><span class="ch-badge" style="background:${bg};color:${tc}">${ch}</span></td>
+      <td style="color:#555">${s.qs} &nbsp;(${s.count}Q)</td>
+      <td class="ctr" style="font-weight:700">${s.totalWrong}</td>
+      <td class="ctr" style="color:#888">${s.max}</td>
+      <td class="ctr" style="font-weight:700;color:${barC}">${pct}%</td>
+      <td><div class="pbar"><div class="pfill" style="width:${pct}%;background:${barC}"></div></div></td>
+      <td class="ctr"><span class="badge ${bCls}">${lbl}</span></td>
+    </tr>`;
+  });
+}
+
+function renderSecB(key) {
+  // Fix #9: apply active filter
+  let data = [...RPT.studentReports];
+  const filterVal = (document.getElementById('sb-filter')||{}).value || 'all';
+  const searchVal = ((document.getElementById('sb-search')||{}).value || '').toLowerCase().trim();
+  if(filterVal !== 'all') data = data.filter(s => s.priority === filterVal);
+  if(searchVal) data = data.filter(s => s.name.toLowerCase().includes(searchVal));
+
+  if(key==='name')  data.sort((a,b)=>a.name.localeCompare(b.name)*SORT_DIR);
+  else if(key==='score') data.sort((a,b)=>(a.neetMarks-b.neetMarks)*SORT_DIR);
+  else if(key==='wrong') data.sort((a,b)=>(b.totalWrong-a.totalWrong)*SORT_DIR);
+  else { const o={high:0,medium:1,low:2}; data.sort((a,b)=>(o[a.priority]-o[b.priority])*SORT_DIR); }
+
+  const ANSKEY=QP.questions.map(q=>q.ans);
+  const prB={
+    high:'<span class="badge b-red"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#E53935;margin-right:3px"></span>High</span>',
+    medium:'<span class="badge b-yellow"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#FB8C00;margin-right:3px"></span>Medium</span>',
+    low:'<span class="badge b-green"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#43A047;margin-right:3px"></span>Low</span>',
+  };
+
+  document.getElementById('rpt-b-header').innerHTML=
+    `<div style="display:grid;grid-template-columns:180px 110px 140px 140px 110px 80px 22px;gap:10px">
+      <span>Student</span><span>NEET Marks</span><span>Weakest (rate)</span><span>2nd Weakest</span><span>Priority</span><span>DOC</span><span></span>
+    </div>`;
+
+  const maxMarksLabel = RPT.totalQ * 4;
+  document.getElementById('rpt-b-count').textContent =
+    `Showing ${data.length} of ${RPT.studentReports.length} students`;
+
+  document.getElementById('rpt-b-body').innerHTML = data.map((s,i)=>{
+    const gIdx = RPT.studentReports.indexOf(s);
+    const {bg:w1bg,tc:w1tc}=RPT.chapColors[s.w1]||{bg:'#eee',tc:'#333'};
+    const {bg:w2bg,tc:w2tc}=RPT.chapColors[s.w2]||{bg:'#eee',tc:'#333'};
+
+    // ── SMART ACTION PLAN ──────────────────────────────────────────
+    const totalQ   = QP.questions.length;
+    const attempted = s.answers.filter(a => a !== '').length;
+    const unattempted = s.totalUnattempted;
+    const accuracy = s.pct;
+
+    const chapRanked = s.rankedByRate.filter(([,w]) => w > 0);
+    const chapWrongRate = {};
+    chapRanked.forEach(([ch,w,r]) => { chapWrongRate[ch] = r; });
+    const top3 = chapRanked.slice(0,3).map(([ch])=>ch);
+
+    // Smart chapter display — never show "Unknown" in plan text; fall back to sub-concept names
+    const resolveChap = (ch) => {
+      if(!ch || ch==='Unknown') {
+        if(s.topSubs && s.topSubs.length > 0) return s.topSubs[0][0];
+        return 'your weakest topic';
+      }
+      return ch;
+    };
+    const disp_w1 = resolveChap(s.w1);
+    const disp_w2 = (() => {
+      const r2 = resolveChap(s.w2);
+      if(r2 !== disp_w1) return r2;
+      return (s.topSubs && s.topSubs[1]) ? s.topSubs[1][0] : r2;
+    })();
+    const disp_top = top3.map(resolveChap);
+    const disp_highRate = chapRanked.find(([,w]) => w > 0)
+      ? { ch: resolveChap(chapRanked.find(([,w,r]) => r >= 0.5)?.[0] || chapRanked[0][0]),
+          r: chapRanked.find(([,w,r]) => r >= 0.5)?.[2] || chapRanked[0][2] }
+      : null;
+
+    // Fix 7: unattempted flag — if very high, pivot plan advice
+    const unattemptedPct = unattempted / totalQ;
+    const unattemptedLine = unattempted > totalQ * 0.15
+      ? `<br><strong>&#9203; ${unattempted} questions unattempted (${Math.round(unattemptedPct*100)}%)</strong> — work on exam time management alongside content revision.`
+      : '';
+    const examStrategyNote = unattemptedPct >= 0.30
+      ? `<br><br><strong style="color:#B71C1C">&#9888; Primary issue: Exam pacing.</strong> ${unattempted} out of ${totalQ} questions were left unattempted — that alone costs ${unattempted*4} potential marks. Before focusing on content revision, practise finishing full papers within time. Set a rule: attempt every question even if unsure — a guess has a 25% chance of +4, while blank is always 0.`
+      : '';
+
+    // ── Fix 4+5: Error advice names specific sub-concepts ──────────
+    const dominantErr = s.errWrong.Memory >= s.errWrong.Conceptual && s.errWrong.Memory >= s.errWrong.Application
+      ? 'Memory' : s.errWrong.Conceptual >= s.errWrong.Application ? 'Conceptual' : 'Application';
+
+    // Sub-concepts for inline use in Day instructions (Fix 5)
+    const sub1 = s.topSubs[0] ? s.topSubs[0][0] : null;
+    const sub2 = s.topSubs[1] ? s.topSubs[1][0] : null;
+    const sub3 = s.topSubs[2] ? s.topSubs[2][0] : null;
+    const subCount = s.topSubs.length;
+
+    // Fix 4: error advice names the actual sub-concepts where errors happened
+    const subErrTarget = sub1 && sub2 ? `<strong>${sub1}</strong> and <strong>${sub2}</strong>`
+                       : sub1 ? `<strong>${sub1}</strong>` : `<strong>${disp_w1}</strong>`;
+    const errAdvice = dominantErr==='Memory'
+      ? `Most of your errors are <strong>Memory</strong> type — make one flashcard per concept for ${subErrTarget} specifically. Use spaced repetition, not re-reading.`
+      : dominantErr==='Conceptual'
+      ? `Most of your errors are <strong>Conceptual</strong> — re-reading won't help. Draw mechanism diagrams for ${subErrTarget} from scratch until you can reproduce them without looking.`
+      : `Most of your errors are <strong>Application</strong> type — you know the theory in ${subErrTarget} but miss it under exam pressure. Timed MCQ drills on these sub-topics specifically.`;
+
+    // Fix 2: timeline label scales to question count
+    // ≤45Q → 3-day, 46–90Q → 7-day, 91+ → 2-week
+    const isShort  = totalQ <= 45;
+    const isMedium = totalQ > 45 && totalQ <= 90;
+    const isLong   = totalQ > 90;
+
+    // Fix 2: helper — returns the right time label per slot
+    const T = (short, med, lng) => isShort ? short : isMedium ? med : lng;
+
+    // Fix 5: sub-concept inline strings for Day instructions
+    // Returns a focused sub-topic instruction line based on available data
+    const subFocusLine = (chapName) => {
+      if(subCount === 0) return '';
+      // Find sub-concepts that belong to this chapter
+      const chapIdxs = QP.chapGroups[chapName] || [];
+      const chapSubWrong = {};
+      chapIdxs.forEach(qi => {
+        const a = s.answers[qi];
+        if(a !== '' && a !== QP.questions[qi].ans) {
+          const sub = QP.questions[qi].sub || '';
+          if(sub && sub !== '—') chapSubWrong[sub] = (chapSubWrong[sub]||0)+1;
+        }
+      });
+      const chapTopSubs = Object.entries(chapSubWrong).sort((a,b)=>b[1]-a[1]).slice(0,2);
+      if(chapTopSubs.length === 0 && subCount > 0) {
+        // Fall back to global top subs
+        const fallback = s.topSubs.slice(0,2).map(([s])=>`<strong>${s}</strong>`).join(' and ');
+        return ` Focus on ${fallback} specifically.`;
+      }
+      if(chapTopSubs.length === 1) return ` Especially <strong>${chapTopSubs[0][0]}</strong> (${chapTopSubs[0][1]} wrong).`;
+      return ` Especially <strong>${chapTopSubs[0][0]}</strong> (${chapTopSubs[0][1]} wrong) and <strong>${chapTopSubs[1][0]}</strong> (${chapTopSubs[1][1]} wrong).`;
+    };
+
+    // Fix 1: Use s.priority (computed from NEET marksBand) not raw accuracy% to select tier
+    const planTier = s.priority === 'high' && s.marksPct < 10 ? 'critical'
+                   : s.priority === 'high' ? 'high'
+                   : s.priority === 'medium' ? 'medium' : 'low';
+
+    const getFmtAcc = (f) => s.fmtStats && s.fmtStats[f] && s.fmtStats[f].t > 0 ? Math.round(s.fmtStats[f].c/s.fmtStats[f].t*100) : 0;
+    const getCogAcc = (c) => s.cogStats && s.cogStats[c] && s.cogStats[c].total > 0 ? Math.round(s.cogStats[c].correct/s.cogStats[c].total*100) : 0;
+
+    const chapUnattemptedRanked = Object.entries(s.chapUnattempted||{}).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+    const unattemptedChapDetail = chapUnattemptedRanked.length > 0
+      ? ` Chapters with most skips: ${chapUnattemptedRanked.slice(0,2).map(([ch,v])=>`<strong>${ch}</strong> (${v} skipped)`).join(' and ')}. Rule for future exams: if you cannot answer in 90 seconds, eliminate 2 options and guess — a guess on a 4-option question has an expected value of +0.75 marks. A blank is always 0.`
+      : '';
+
+    const expandedUnattempted = unattempted > totalQ * 0.15
+      ? `<div style="background:#FFF8E1;border-left:4px solid #F59E0B;padding:10px 14px;border-radius:6px;margin:10px 0;font-size:12px"><strong>⏱ Pacing Alert — ${unattempted} Questions Unattempted</strong><br>Leaving ${unattempted} questions blank costs a minimum of ${unattempted*4} marks guaranteed (those questions award 0 instead of a possible +4).${unattemptedChapDetail}</div>`
+      : '';
+
+    let plan = '';
+
+    if (planTier === 'critical') {
+      const diagnosisLine = unattempted > totalQ * 0.25
+        ? `<strong>Note:</strong> ${unattempted} questions unattempted — this is a confidence or time management crisis alongside concept gaps.`
+        : `Only <strong>${s.pct}%</strong> accuracy across ${totalQ} questions — this is a foundational understanding gap, not a revision issue. Re-reading is not the fix.`;
+      plan = `<div style="background:#FFF5F5;border-left:4px solid #DC2626;padding:12px 16px;border-radius:8px;margin-bottom:10px">
+<span style="color:#B71C1C;font-weight:700;font-size:13px">⚠ Critical — Rebuild from Basics</span><br>
+<span style="color:#7F1D1D;font-size:12px">${diagnosisLine}</span></div>
+${expandedUnattempted}
+<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:6px;padding:10px 14px;margin-bottom:10px;font-size:12px">
+<strong style="color:#1F3864">🎯 This Week's Focus: NCERT Line-by-Line Reading. Zero MCQs until Day 5.</strong><br><br>
+${errAdvice}${examStrategyNote}
+</div>
+<div style="font-size:12px;line-height:2.1">
+<strong>${T('Day 1–2','Week 1','Week 1')}:</strong> Do NOT open any MCQ book yet. Open NCERT for <strong>${disp_top[0]||disp_w1}</strong>.${subFocusLine(s.w1)} Read one section at a time. After finishing each section, close the book completely and write a 5-line summary in your own words without looking — this is active recall and it is the single most effective study method for your current level. Your Recall accuracy right now is <strong>${getCogAcc('Recall')}%</strong>. The goal before attempting MCQs is 60%.<br>
+<strong>${T('Day 3–4','Week 2','Week 2')}:</strong> Repeat the same active recall process for <strong>${disp_top[1]||disp_w2}</strong>${disp_top[2]?' and <strong>'+disp_top[2]+'</strong>':''}. ${subFocusLine(s.w2)} Additionally, draw every diagram from these chapters from scratch without looking — label all parts. After drawing, open NCERT and note every label you missed. Missed labels reveal exactly what your brain has not encoded.<br>
+<strong>${T('Day 5–6','Week 3','Week 3')}:</strong> Now attempt ${T('10','15','20')} MCQs per chapter. For every wrong answer, write the correction in this exact format in a notebook: "I thought [X] because [Y]. The correct answer is [Z] because [NCERT fact]." Do not just tick and move on — writing forces the brain to process the correction.<br>
+<strong>${T('Day 7','Week 4','Week 4')}:</strong> Take a ${T('30','50','90')}-question mock restricted to <strong>${disp_w1}</strong> and <strong>${disp_w2}</strong> with a timer running. After the mock, go through every wrong answer again using the same notebook format.<br>
+<strong>📌 Milestone:</strong> Target is <strong>${Math.round(s.maxMarks*0.25)} marks</strong>. Currently at <strong>${s.neetMarks}</strong>. Gap = ${Math.max(0,Math.round(s.maxMarks*0.25)-s.neetMarks)} marks — that is <strong>${Math.max(0,Math.ceil((Math.round(s.maxMarks*0.25)-s.neetMarks)/5))} more correct answers</strong> to exit Critical tier.
+</div>`;
+
+    } else if (planTier === 'high') {
+      const spreadEvenly = chapRanked.length>1 && Math.abs(chapRanked[0][1]-chapRanked[1][1])<=3;
+      const w1Rate = chapWrongRate[s.w1]!==undefined ? Math.round(chapWrongRate[s.w1]*100) : Math.round((s.chapWrong[s.w1]||0)/(s.chapTotals[s.w1]||1)*100);
+      const focusLine = spreadEvenly
+        ? `Errors are spread across multiple chapters — this is a broad conceptual weakness, not a single chapter problem.`
+        : `<strong>${disp_w1}</strong> is the biggest liability at <strong>${w1Rate}%</strong> wrong rate. Fix this first, but do not ignore other chapters after.`;
+      plan = `<div style="background:#FFF7ED;border-left:4px solid #EA580C;padding:12px 16px;border-radius:8px;margin-bottom:10px">
+<span style="color:#C2410C;font-weight:700;font-size:13px">▲ High Risk — Structured Revision Needed</span><br>
+<span style="color:#7C2D12;font-size:12px">${focusLine}</span></div>
+${expandedUnattempted}
+<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:6px;padding:10px 14px;margin-bottom:10px;font-size:12px">
+<strong style="color:#1F3864">🎯 This Week's Focus: Chapter-by-Chapter Error Elimination</strong><br><br>
+${errAdvice}${examStrategyNote}
+</div>
+<div style="font-size:12px;line-height:2.1">
+<strong>${T('Day 1','Day 1–2','Day 1–3')}:</strong> Open NCERT for <strong>${disp_w1}</strong>.${subFocusLine(s.w1)} Read with a pen in hand — do not highlight, write. After reading, close NCERT and list every concept you could not recall without looking. That list is your flashcard queue. One card per specific fact, not one card per chapter.<br>
+<strong>${T('Day 2','Day 3–4','Day 4–6')}:</strong> Redo every wrong question from <strong>${disp_w1}</strong> and <strong>${disp_w2}</strong> one by one.${subFocusLine(s.w2)} For each wrong answer write this exact sentence: "I answered [your answer] because I thought [your reasoning]. The correct answer is [right option] because [NCERT fact]." This forces genuine correction rather than passive re-reading.<br>
+<strong>${T('Day 3','Day 5','Day 7–8')}:</strong> Attempt ${T('15','20','25')} fresh unseen MCQs on <strong>${disp_w1}</strong>. If you get them wrong again, return to NCERT before attempting more — attempting more questions without fixing the concept just reinforces the wrong memory. Recall accuracy currently: <strong>${getCogAcc('Recall')}%</strong>. Target before moving to Analysis-level questions: 65%.<br>
+<strong>${T('Day 4–5','Day 6–7','Day 9–14')}:</strong> Cover <strong>${disp_top[2]||disp_w2}</strong> using the exact same process.${subFocusLine(disp_top[2]||s.w2)} Once done, attempt ${T('10','15','20')} mixed questions across all three weak chapters. Analysis-level accuracy currently: <strong>${getCogAcc('Analysis')}%</strong> — once Recall crosses 65%, shift drilling focus to Analysis-level questions.<br>
+<strong>📌 Milestone:</strong> Target is <strong>${Math.round(s.maxMarks*0.35)} marks</strong>. Currently at <strong>${s.neetMarks}</strong>. Gap = ${Math.max(0,Math.round(s.maxMarks*0.35)-s.neetMarks)} marks — that is <strong>${Math.max(0,Math.ceil((Math.round(s.maxMarks*0.35)-s.neetMarks)/5))} more correct answers</strong> to move to Medium Risk.
+</div>`;
+
+    } else if (planTier === 'medium') {
+      const highRateChap = chapRanked.find(([ch,,r]) => r >= 0.5);
+      const subConceptTip = highRateChap
+        ? `<strong>${resolveChap(highRateChap[0])}</strong> has a <strong>${Math.round(highRateChap[2]*100)}%</strong> wrong rate — this one chapter is pulling the score down the most.`
+        : `Errors are scattered across chapters — concepts are broadly known but details are missed under exam conditions.`;
+      plan = `<div style="background:#FFFBEB;border-left:4px solid #D97706;padding:12px 16px;border-radius:8px;margin-bottom:10px">
+<span style="color:#B45309;font-weight:700;font-size:13px">◉ Medium Risk — Targeted Gap Closing</span><br>
+<span style="color:#78350F;font-size:12px">${subConceptTip}</span></div>
+${expandedUnattempted}
+<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;padding:10px 14px;margin-bottom:10px;font-size:12px">
+<strong style="color:#1F3864">🎯 This Week's Focus: Sub-Concept Surgery + Timed Drilling</strong><br><br>
+${errAdvice}${examStrategyNote}
+</div>
+<div style="font-size:12px;line-height:2.1">
+<strong>${T('Day 1','Day 1–2','Day 1–3')}:</strong> List every wrong question from <strong>${disp_w1}</strong> and group them by sub-topic.${subFocusLine(s.w1)} You will find 2–3 sub-concepts repeating — those are the actual problem, not the whole chapter. Do not re-read the entire chapter. Open NCERT and read only the specific paragraphs covering those exact sub-concepts.<br>
+<strong>${T('Day 2','Day 3–4','Day 4–6')}:</strong> For each weak sub-concept${sub1?` — starting with <strong>${sub1}</strong>${sub2?` then <strong>${sub2}</strong>`:''}`:''} — write a 10-point fact sheet entirely from memory first, then check against NCERT and add only what you missed. Write only facts you did NOT already know. Writing facts you already know feels productive but teaches nothing. Analysis accuracy currently: <strong>${getCogAcc('Analysis')}%</strong> — re-reading facts alone will not raise this; understanding mechanisms will.<br>
+<strong>${T('Day 3','Day 5–6','Day 7–10')}:</strong> Attempt ${T('20','30','45')} fresh timed MCQs on <strong>${disp_w1}</strong> and <strong>${disp_w2}</strong>.${subFocusLine(s.w2)} Pay special attention to Assertion-Reason questions — current accuracy on this format: <strong>${getFmtAcc('Assertion-Reason')}%</strong>. These questions test whether mechanisms are understood, not just facts memorised.<br>
+<strong>${T('Day 4','Day 7','Day 11–14')}:</strong> Take a 40-question timed mock restricted to <strong>${disp_w1}</strong> and <strong>${disp_w2}</strong>. Set a 48-minute timer — 72 seconds per question, same as NEET. After the mock, review every wrong answer immediately, do not wait.<br>
+<strong>📌 Milestone:</strong> Target is <strong>${Math.round(s.maxMarks*0.55)} marks</strong>. Currently at <strong>${s.neetMarks}</strong>. Gap = ${Math.max(0,Math.round(s.maxMarks*0.55)-s.neetMarks)} marks — that is <strong>${Math.max(0,Math.ceil((Math.round(s.maxMarks*0.55)-s.neetMarks)/5))} more correct answers</strong> to reach Low Risk.
+</div>`;
+
+    } else {
+      const topSub1 = disp_top[0];
+      const studentScore = s.subScores && topSub1 ? (s.subScores[topSub1]||0) : 0;
+      const topperScore = s.batchSubMax && topSub1 ? (s.batchSubMax[topSub1]||studentScore) : studentScore;
+      const delta = topperScore - studentScore;
+      const deltaBlock = delta > 0
+        ? `<div style="background:#FEE2E2;border-left:3px solid #DC2626;padding:8px 12px;border-radius:4px;margin:8px 0;font-size:12px"><strong>📊 Batch Topper Delta:</strong> Scored <strong>${studentScore}</strong> on <strong>${topSub1}</strong>. Highest in batch: <strong>${topperScore}</strong>. Gap = <strong>${delta*4} potential marks</strong> — entirely closeable with focused work on this sub-concept.</div>`
+        : '';
+      const mainGap = chapRanked[0];
+      const isMinorGap = mainGap && mainGap[1] <= Math.ceil(totalQ*0.06);
+      const fineTuneLine = isMinorGap
+        ? `Only <strong>${s.totalWrong}</strong> wrong — minor gaps in <strong>${resolveChap(mainGap[0])}</strong> (${mainGap[1]} wrong). Very close to peak performance.`
+        : `Strong overall at <strong>${s.pct}%</strong> accuracy. Small targeted work will push marks significantly higher.`;
+      plan = `<div style="background:#F0FDF4;border-left:4px solid #16A34A;padding:12px 16px;border-radius:8px;margin-bottom:10px">
+<span style="color:#15803D;font-weight:700;font-size:13px">✅ Low Risk — Polish & Push Higher</span><br>
+<span style="color:#14532D;font-size:12px">${fineTuneLine}</span></div>
+${deltaBlock}
+${expandedUnattempted}
+<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:6px;padding:10px 14px;margin-bottom:10px;font-size:12px">
+<strong style="color:#1F3864">🎯 This Week's Focus: Evaluation Traps + Format Mastery</strong><br><br>
+${errAdvice}${examStrategyNote}
+</div>
+<div style="font-size:12px;line-height:2.1">
+<strong>${T('Day 1','Day 1–2','Day 1–3')}:</strong> Review every wrong question in <strong>${disp_w1}</strong>${chapRanked[1]?' and <strong>'+resolveChap(chapRanked[1][0])+'</strong>':''}.${subFocusLine(s.w1)} For each wrong answer, identify the exact trap type — was it a qualifier word (always/never/only/except), a similar-looking distractor option, or an assumption made that was not stated in the question? Label every wrong question with its trap type. This trap-labelling exercise is what separates 600-scorers from 650-scorers.<br>
+<strong>${T('Day 2','Day 3','Day 4–5')}:</strong> Write a one-line rule for each wrong answer.${sub1?` Pay close attention to <strong>${sub1}</strong>${sub2?' and <strong>'+sub2+'</strong>':''}.`:''} Build a personal quick-reference sheet — one page per weak chapter, containing only facts that were previously wrong. Practise specifically <strong>Assertion-Reason</strong> and <strong>Match-the-Column</strong> format questions. Current Assertion-Reason accuracy: <strong>${getFmtAcc('Assertion-Reason')}%</strong>. These two formats account for 15–20% of NEET marks and are the primary source of mark loss at this score level.<br>
+<strong>${T('Day 3','Day 4–6','Day 6–10')}:</strong> Attempt ${T('20','30','45')} fresh timed MCQs focused on weak sub-topics.${subFocusLine(s.w2)} Evaluation-level accuracy currently: <strong>${getCogAcc('Evaluation')}%</strong>. The NEET target for top-tier performance is above 65% on Evaluation questions — these require holding two or three facts simultaneously and reasoning between them. They separate 600+ from 650+ scorers.<br>
+<strong>${T('Day 4','Day 7','Day 11–14')}:</strong> Full-length timed mock. After the mock, do not just check the score — go through every Evaluation and Application question that was wrong and write the full reasoning chain that should have been followed, step by step.<br>
+<strong>📌 Milestone:</strong> Target is <strong>${Math.round(s.maxMarks*0.75)} marks</strong>. Currently at <strong>${s.neetMarks}</strong>. Gap = ${Math.max(0,Math.round(s.maxMarks*0.75)-s.neetMarks)} marks — that is <strong>${Math.max(0,Math.ceil((Math.round(s.maxMarks*0.75)-s.neetMarks)/5))} more correct answers</strong>.
+</div>`;
+    }
+        // ── END SMART ACTION PLAN ──────────────────────────────────
+
+    // Store plain-text plan for Excel export and DOC
+    s._planText = plan;
+
+    // Fix #8: Answer grid grouped by chapter
+    const ansHtml = Object.entries(QP.chapGroups).map(([ch, indices]) => {
+      const {bg,tc} = RPT.chapColors[ch]||{bg:'#eee',tc:'#333'};
+      const cells = indices.map(qi => {
+        const a = s.answers[qi], ok=a===ANSKEY[qi], blank=a==='';
+        return `<div class="ans-cell ${blank?'ans-blank':ok?'ans-ok':'ans-err'}" title="${QP.questions[qi].qno}: ${QP.questions[qi].text||''}">
+          <span class="qlbl">${QP.questions[qi].qno}</span>${a||'–'}
+        </div>`;
+      }).join('');
+      const chWrong = s.chapWrong[ch]||0;
+      const chRate  = s.chapTotals[ch]>0 ? Math.round((chWrong/s.chapTotals[ch])*100) : 0;
+      return `<div style="margin-bottom:10px">
+        <div style="font-size:11px;font-weight:700;color:${tc};background:${bg};padding:3px 8px;border-radius:4px;display:inline-block;margin-bottom:5px">${ch} — ${chWrong} wrong / ${s.chapTotals[ch]} &nbsp;(${chRate}% error rate)</div>
+        <div class="ans-grid">${cells}</div>
+      </div>`;
+    }).join('');
+
+    // Chapter breakdown badges
+    const chapBreakdown = Object.entries(s.chapWrong)
+      .sort((a,b)=>b[1]-a[1])
+      .map(([ch,w])=>{
+        const rate = s.chapTotals[ch]>0?Math.round((w/s.chapTotals[ch])*100):0;
+        const col = rate>=60?'#B71C1C':rate>=40?'#E65100':'#1B5E20';
+        return `<span style="font-size:11px;background:#f0f4fb;border:1px solid #dde4ef;border-radius:4px;padding:2px 8px;color:${col}">${ch}: ${w}✗ (${rate}%)</span>`;
+      }).join('');
+
+    // NEET marks color
+    const marksColor = s.priority==='high'?'#B71C1C':s.priority==='medium'?'#E65100':'#1B5E20';
+    const neetDisplay = `<span style="color:${marksColor};font-weight:700">${s.neetMarks}</span><span style="font-size:10px;color:#999">/${s.maxMarks}</span>`;
+
+    return `<div class="srow">
+      <div class="shdr" style="grid-template-columns:180px 110px 140px 140px 110px 80px 22px" onclick="toggleS(${gIdx})">
+        <span style="font-weight:700">${s.name}</span>
+        <span>${neetDisplay}</span>
+        <span class="ch-badge" style="background:${w1bg};color:${w1tc}">${s.w1}</span>
+        <span class="ch-badge" style="background:${w2bg};color:${w2tc}">${s.w2}</span>
+        ${prB[s.priority]}
+        <button onclick="event.stopPropagation();genStudentDOC('${s.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')" style="padding:4px 8px;background:#2563eb;color:white;border:none;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer">&#128196; DOC</button>
+        <span id="sarr-${gIdx}" style="color:#aaa;font-size:11px">▶</span>
+      </div>
+      <div class="sdetail" id="sdet-${gIdx}">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
+          <div style="background:#f0f4fb;border-radius:6px;padding:10px;text-align:center">
+            <div style="font-size:10px;color:#666;margin-bottom:2px">NEET Marks</div>
+            <div style="font-size:20px;font-weight:700;color:${marksColor}">${s.neetMarks}</div>
+            <div style="font-size:10px;color:#999">out of ${s.maxMarks}</div>
+          </div>
+          <div style="background:#f0f4fb;border-radius:6px;padding:10px;text-align:center">
+            <div style="font-size:10px;color:#666;margin-bottom:2px">Correct</div>
+            <div style="font-size:20px;font-weight:700;color:#1B5E20">${s.totalCorrect}</div>
+            <div style="font-size:10px;color:#999">+${s.totalCorrect*4} marks</div>
+          </div>
+          <div style="background:#f0f4fb;border-radius:6px;padding:10px;text-align:center">
+            <div style="font-size:10px;color:#666;margin-bottom:2px">Wrong</div>
+            <div style="font-size:20px;font-weight:700;color:#B71C1C">${s.totalWrong}</div>
+            <div style="font-size:10px;color:#999">−${s.totalWrong} marks</div>
+          </div>
+          <div style="background:#f0f4fb;border-radius:6px;padding:10px;text-align:center">
+            <div style="font-size:10px;color:#666;margin-bottom:2px">Unattempted</div>
+            <div style="font-size:20px;font-weight:700;color:#555">${s.totalUnattempted}</div>
+            <div style="font-size:10px;color:#999">0 marks</div>
+          </div>
+        </div>
+        <div style="background:#f0f4fb;border-radius:8px;padding:10px 14px;margin-bottom:10px">
+          <div style="font-size:11px;font-weight:700;color:#1F3864;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Personalised Action Plan</div>
+        </div>
+        <div id="action-plan-container-${gIdx}">
+          ${s.aiReport ? renderAIPrescriptionHTML(s.aiReport) : `
+            <div style="font-size:11px;color:#64748b;margin-bottom:10px">For parents: ${s.name} scored <strong style="color:${s.priority==='high'?'#B71C1C':s.priority==='medium'?'#E65100':'#1B5E20'}">${s.neetMarks}/${s.maxMarks} marks</strong>. Primary issue: <strong>${s.errWrong.Memory>=s.errWrong.Conceptual&&s.errWrong.Memory>=s.errWrong.Application?'Memory recall':s.errWrong.Conceptual>=s.errWrong.Application?'Conceptual understanding':'Application under pressure'}</strong> in <strong>${s.w1}</strong> and <strong>${s.w2}</strong>. The plan below gives a step-by-step schedule. The highest impact action is completing Day 1 within 48 hours.</div>
+            <div style="font-size:12px;color:#444;line-height:1.9;margin-bottom:12px">${plan}</div>
+            <div style="text-align: center; margin: 16px 0; padding: 20px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #bbf7d0; border-radius: 12px; box-shadow: var(--shadow-sm);" id="ai-cta-container-${gIdx}">
+              <p style="font-size: 13px; font-weight: 700; color: #166534; margin-bottom: 6px;">✨ Generate Premium AI Pedagogical Prescription</p>
+              <p style="font-size: 11px; color: #15803d; margin-bottom: 12px; max-width: 500px; margin-left: auto; margin-right: auto; line-height: 1.4;">
+                Select a mode below. Mode 1 is a fast, template-based pedagogical prescription. Modes 2 & 3 trigger deep AI analysis.
+              </p>
+              <div style="display:flex;justify-content:center;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap;">
+                <span style="font-size:11px;color:#166534;font-weight:600;">Prescription Mode:</span>
+                <button onclick="setPrescriptionMode('mode1', ${gIdx})" id="mode-btn-1-${gIdx}" style="padding:5px 14px;border-radius:20px;border:2px solid ${window.BIORIVET_PRESCRIPTION_MODE === 'mode1' ? '#10b981' : '#e2e8f0'};background:${window.BIORIVET_PRESCRIPTION_MODE === 'mode1' ? '#10b981' : 'white'};color:${window.BIORIVET_PRESCRIPTION_MODE === 'mode1' ? 'white' : '#64748b'};font-size:11px;font-weight:700;cursor:pointer;transition:all 0.2s ease;">Friendly Teacher</button>
+                <button onclick="setPrescriptionMode('mode2', ${gIdx})" id="mode-btn-2-${gIdx}" style="padding:5px 14px;border-radius:20px;border:2px solid ${window.BIORIVET_PRESCRIPTION_MODE === 'mode2' ? '#10b981' : '#e2e8f0'};background:${window.BIORIVET_PRESCRIPTION_MODE === 'mode2' ? '#10b981' : 'white'};color:${window.BIORIVET_PRESCRIPTION_MODE === 'mode2' ? 'white' : '#64748b'};font-size:11px;font-weight:700;cursor:pointer;transition:all 0.2s ease;">Hinglish Deep Forensic</button>
+                <button onclick="setPrescriptionMode('mode3', ${gIdx})" id="mode-btn-3-${gIdx}" style="padding:5px 14px;border-radius:20px;border:2px solid ${window.BIORIVET_PRESCRIPTION_MODE === 'mode3' ? '#10b981' : '#e2e8f0'};background:${window.BIORIVET_PRESCRIPTION_MODE === 'mode3' ? '#10b981' : 'white'};color:${window.BIORIVET_PRESCRIPTION_MODE === 'mode3' ? 'white' : '#64748b'};font-size:11px;font-weight:700;cursor:pointer;transition:all 0.2s ease;">English Deep Forensic</button>
+
+              </div>
+              <button class="btn btn-green" onclick="event.stopPropagation(); triggerAIPrescription(${gIdx})" id="ai-btn-${gIdx}" style="box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2); padding: 8px 16px; font-weight: 600; border-radius: 6px; border: none; background: #10b981; color: white; cursor: pointer;">
+                ✨ Generate AI Prescription
+              </button>
+            </div>
+          `}
+        </div>
+        
+        <!-- Missed Questions Detail Table -->
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px 14px; margin-top:14px; margin-bottom:14px">
+          <div style="font-size:11px; font-weight:700; color:#1F3864; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px">Missed Questions Detail (${s.missedQuestions.length})</div>
+          ${s.missedQuestions.length === 0 ? `
+            <div style="font-size:12px; color:#16a34a; font-weight:600; padding:4px 0">✓ Perfect Score! No questions were missed.</div>
+          ` : `
+            <div style="overflow-x:auto">
+              <table style="width:100%; border-collapse:collapse; background:white; font-size:11px">
+                <thead>
+                  <tr style="background:#f1f5f9; text-align:left; color:#475569">
+                    <th style="padding:6px 10px; border-bottom:1px solid #e2e8f0">Q No</th>
+                    <th style="padding:6px 10px; border-bottom:1px solid #e2e8f0">Subject</th>
+                    <th style="padding:6px 10px; border-bottom:1px solid #e2e8f0">Chapter / Sub-Concept</th>
+                    <th style="padding:6px 10px; border-bottom:1px solid #e2e8f0">Error Type</th>
+                    <th style="padding:6px 10px; border-bottom:1px solid #e2e8f0">Cognitive Type</th>
+                    <th style="padding:6px 10px; border-bottom:1px solid #e2e8f0; text-align:center">Key &rarr; Attempt</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${s.missedQuestions.map(mq => `
+                    <tr>
+                      <td style="padding:6px 10px; border-bottom:1px solid #eee; font-weight:700; color:#2e5ea8">Q${mq.qno}</td>
+                      <td style="padding:6px 10px; border-bottom:1px solid #eee"><span style="background:#e0f7fa; color:#006064; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600">${mq.subject}</span></td>
+                      <td style="padding:6px 10px; border-bottom:1px solid #eee"><strong>${mq.chapter}</strong><br><span style="color:#666">${mq.sub}</span></td>
+                      <td style="padding:6px 10px; border-bottom:1px solid #eee">${mq.errorType}</td>
+                      <td style="padding:6px 10px; border-bottom:1px solid #eee"><span style="background:#e8eaf6; color:#1a237e; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600">${mq.cognitiveType}</span></td>
+                      <td style="padding:6px 10px; border-bottom:1px solid #eee; text-align:center; font-weight:700; color:#b91c1c">${mq.correctAnswer} &rarr; ${mq.studentAnswer}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `}
+        </div>
+
+        <p style="font-size:11px;font-weight:700;color:#666;margin-bottom:6px">Answer grid by chapter &nbsp;(<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#43A047;vertical-align:middle;margin-right:3px"></span>correct &nbsp;·&nbsp; <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#E53935;vertical-align:middle;margin-right:3px"></span>wrong &nbsp;·&nbsp; <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#ccc;vertical-align:middle;margin-right:3px"></span>unattempted — hover for question text)</p>
+        ${ansHtml}
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">${chapBreakdown}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleS(i) {
+  const d=document.getElementById('sdet-'+i), a=document.getElementById('sarr-'+i);
+  d.classList.toggle('open'); a.textContent=d.classList.contains('open')?'▼':'▶';
+}
+
+function renderAIPrescriptionHTML(ai) {
+  const conceptual = ai.errorAnalysis?.conceptualCount || 0;
+  const application = ai.errorAnalysis?.applicationCount || 0;
+  const behavioral = ai.errorAnalysis?.behavioralCount || 0;
+  const total = conceptual + application + behavioral;
+  
+  const cPct = total > 0 ? Math.round((conceptual/total)*100) : 0;
+  const aPct = total > 0 ? Math.round((application/total)*100) : 0;
+  const bPct = total > 0 ? Math.round((behavioral/total)*100) : 0;
+
+  const ap = ai.actionPlan;
+  const isMode1 = !ap.tonightHomework?.whyJustification;
+
+  // Helper: renders one homework card slot
+  function renderSlot(label, labelColor, labelBg, slot, emoji) {
+    if (!slot) return '';
+    return `
+    <div style="margin-bottom:16px; padding:14px; background:#fff; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 1px 4px rgba(0,0,0,0.05);">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
+        <span style="font-size:11px; font-weight:800; color:${labelColor}; background:${labelBg}; padding:3px 10px; border-radius:20px; text-transform:uppercase; letter-spacing:0.5px;">${emoji} ${label}</span>
+        <span style="font-size:11px; font-weight:600; color:#0369a1; background:#e0f2fe; padding:2px 8px; border-radius:4px;">${slot.subject || ''}</span>
+        <span style="font-size:11px; font-weight:600; color:#15803d; background:#dcfce7; padding:2px 8px; border-radius:4px; border:1px solid #bbf7d0;">${slot.taskType || ''}</span>
+        ${slot.durationMinutes ? `<span style="font-size:10px; color:#64748b; background:#f1f5f9; padding:2px 7px; border-radius:10px;">⏱ ${slot.durationMinutes} min</span>` : ''}
+      </div>
+      <div style="font-size:12px; font-weight:700; color:#1e293b; margin-bottom:4px;">📖 ${slot.chapter || ''}</div>
+      <div style="font-size:11px; color:#475569; margin-bottom:6px;"><span style="color:#7c3aed; font-weight:600;">Resource:</span> ${slot.resource || slot.ncertCoordinates || '—'}</div>
+      
+      ${slot.whyJustification ? `
+      <div style="font-size:11px; color:#1e3a8a; background:#eff6ff; border-left:3px solid #3b82f6; padding:6px 10px; border-radius:4px; margin-bottom:8px; line-height:1.4;">
+        <strong>💡 Rationale:</strong> ${slot.whyJustification}
+      </div>` : ''}
+
+      <div style="font-size:12px; color:#1e293b; background:#fafaf9; border-left:3px solid #3b82f6; padding:8px 10px; border-radius:4px; margin-bottom:8px; line-height:1.6;">
+        <strong>📝 Homework:</strong> ${slot.taskInHinglish || slot.tacticalTask || '—'}
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <div style="font-size:11px; color:#065f46; background:#ecfdf5; border-radius:6px; padding:7px 9px;">
+          <strong>✅ Self-Check:</strong> ${slot.selfCheck || '—'}
+        </div>
+        <div style="font-size:11px; color:#92400e; background:#fffbeb; border-radius:6px; padding:7px 9px;">
+          <strong>💬 Mentor Note:</strong> ${slot.mentorNote || '—'}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Mini test slot renderer
+  function renderMiniTest(mt) {
+    if (!mt) return '';
+    return `
+    <div style="margin-bottom:16px; padding:14px; background:#fff; border-radius:10px; border:2px solid #f59e0b; box-shadow:0 1px 4px rgba(245,158,11,0.15);">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+        <span style="font-size:11px; font-weight:800; color:#92400e; background:#fef3c7; padding:3px 10px; border-radius:20px; text-transform:uppercase; letter-spacing:0.5px;">🧪 Day 5 — Self Test</span>
+        ${mt.durationMinutes ? `<span style="font-size:10px; color:#64748b; background:#f1f5f9; padding:2px 7px; border-radius:10px;">⏱ ${mt.durationMinutes} min</span>` : ''}
+      </div>
+      
+      ${mt.whyJustification ? `
+      <div style="font-size:11px; color:#1e3a8a; background:#eff6ff; border-left:3px solid #f59e0b; padding:6px 10px; border-radius:4px; margin-bottom:8px; line-height:1.4;">
+        <strong>💡 Rationale:</strong> ${mt.whyJustification}
+      </div>` : ''}
+
+      <div style="font-size:12px; color:#1e293b; background:#fafaf9; border-left:3px solid #f59e0b; padding:8px 10px; border-radius:4px; margin-bottom:8px; line-height:1.6;">
+        <strong>📋 Instructions:</strong> ${mt.instructions || '—'}
+      </div>
+      <div style="font-size:11px; color:#065f46; background:#ecfdf5; border-radius:6px; padding:7px 9px;">
+        <strong>🎯 Pass Criteria:</strong> ${mt.passCriteria || '—'}
+      </div>
+    </div>`;
+  }
+
+  const planRows = `
+    ${renderSlot('Tonight — Priority #1', '#7c3aed', '#ede9fe', ap.tonightHomework, '🔥')}
+    ${renderSlot('Day 2', '#1e40af', '#dbeafe', ap.day2Task, '📘')}
+    ${renderSlot('Day 3–4', '#166534', '#dcfce7', ap.day3_4Task, '📗')}
+    ${renderMiniTest(ap.day5MiniTest)}
+    ${renderSlot('Day 6–7', '#9a3412', '#ffedd5', ap.day6_7Consolidation, '🎯')}
+  `;
+
+  return `
+    <div style="background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%); border: 1px solid #bfdbfe; border-radius: 12px; padding: 20px; margin-top: 10px; margin-bottom: 16px;">
+
+      <!-- Share Card CTA -->
+      <div style="display:flex; justify-content:flex-end; margin-bottom:14px;">
+        <button onclick="openCardModal(this)" data-ai-id="${(typeof registerCardReport === 'function' ? registerCardReport(ai._studentSnapshot?.name || 'student', ai) : ai._studentSnapshot?.name || 'student')}" style="display:inline-flex;align-items:center;gap:7px;padding:7px 14px;background:linear-gradient(135deg,#0A0F2C,#1a2150);color:#fff;border:none;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(10,15,44,0.3);letter-spacing:0.3px;">
+          <span style="font-size:14px;">✦</span> Generate Shareable Card
+        </button>
+      </div>
+
+      <!-- Student Level Badge -->
+      ${(!isMode1 && ai.studentLevel) ? `
+      <div style="background:${ai.studentLevel==='Foundation'?'#fef3c7':ai.studentLevel==='Refinement'?'#ecfdf5':'#eff6ff'}; border:1px solid ${ai.studentLevel==='Foundation'?'#fcd34d':ai.studentLevel==='Refinement'?'#6ee7b7':'#93c5fd'}; border-radius:6px; padding:8px 14px; margin-bottom:12px; display:flex; align-items:center; gap:10px;">
+        <div><span style="font-size:11px;font-weight:800;text-transform:uppercase;">Student Level: ${ai.studentLevel}</span> &mdash; <span style="font-size:10px;color:#64748b;">${ai.levelRationale||''}</span></div>
+      </div>` : ''}
+
+      <!-- Academic Summary -->
+      <div style="background: white; border-left: 4px solid #2563eb; padding: 12px 16px; border-radius: 4px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <div style="font-size: 10px; font-weight: 700; color: #2563eb; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Academic Director's Operational Diagnosis</div>
+        <p style="font-size: 13px; font-weight: 600; color: #1e293b; line-height: 1.5; font-style: italic; margin: 0;">
+          "${ai.academicSummary}"
+        </p>
+      </div>
+
+      <!-- Error Forensics -->
+      ${!isMode1 ? `
+      <div style="margin-bottom: 16px;">
+        <div style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Forensic Error Classification</div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px;">
+          <div style="background: #fef2f2; border: 1px solid #fee2e2; border-radius: 8px; padding: 10px; text-align: center;">
+            <div style="font-size: 10px; color: #991b1b; font-weight: 700; text-transform: uppercase;">Conceptual</div>
+            <div style="font-size: 18px; font-weight: 800; color: #b91c1c; margin-top: 2px;">${conceptual}</div>
+            <div style="font-size: 9px; color: #ef4444; font-weight: 600; margin-top: 2px;">${cPct}% of errors</div>
+          </div>
+          <div style="background: #eff6ff; border: 1px solid #dbeafe; border-radius: 8px; padding: 10px; text-align: center;">
+            <div style="font-size: 10px; color: #1e40af; font-weight: 700; text-transform: uppercase;">Application</div>
+            <div style="font-size: 18px; font-weight: 800; color: #2563eb; margin-top: 2px;">${application}</div>
+            <div style="font-size: 9px; color: #3b82f6; font-weight: 600; margin-top: 2px;">${aPct}% of errors</div>
+          </div>
+          <div style="background: #fff7ed; border: 1px solid #ffedd5; border-radius: 8px; padding: 10px; text-align: center;">
+            <div style="font-size: 10px; color: #c2410c; font-weight: 700; text-transform: uppercase;">Behavioral</div>
+            <div style="font-size: 18px; font-weight: 800; color: #ea580c; margin-top: 2px;">${behavioral}</div>
+            <div style="font-size: 9px; color: #f97316; font-weight: 600; margin-top: 2px;">${bPct}% of errors</div>
+          </div>
+        </div>
+        <div style="background: white; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 8px; font-size: 12px; color: #334155; line-height: 1.6; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 8px;">
+          ${ai.errorAnalysis?.rootCause ? `<div><strong style="color: #b91c1c;">🎯 Root Cause:</strong> ${ai.errorAnalysis.rootCause}</div>` : ''}
+          <div><strong>🔍 Forensic Audit Deep-Dive:</strong> ${ai.errorAnalysis?.forensicDeepDive || '—'}</div>
+        </div>
+      </div>` : ''}
+
+      <!-- Stop Doing & Success Signal Cards -->
+      ${(!isMode1 && (ai.stopDoing || ai.successSignal)) ? `
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+        ${ai.stopDoing ? `
+        <div style="background: #fff5f5; border: 1px dashed #feb2b2; border-radius: 8px; padding: 12px; font-size: 12px; color: #9b2c2c;">
+          <strong>🛑 Stop Doing:</strong> ${ai.stopDoing}
+        </div>` : ''}
+        ${ai.successSignal ? `
+        <div style="background: #f0fdf4; border: 1px dashed #86efac; border-radius: 8px; padding: 12px; font-size: 12px; color: #166534;">
+          <strong>🎯 Success Signal:</strong> ${ai.successSignal}
+        </div>` : ''}
+      </div>` : ''}
+
+      <!-- Action Plan Timeline -->
+      <div style="background: white; border: 1px solid #e2e8f0; padding: 16px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <div style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Chronological Action Roadmap</div>
+        ${planRows}
+      </div>
+
+      <!-- Parent Briefing -->
+      <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <div style="font-size: 10px; font-weight: 700; color: #15803d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+          👨‍👩‍👧‍👦 Director's Memo to Parents
+        </div>
+        <p style="font-size: 12px; color: #14532d; line-height: 1.6; font-style: italic; margin: 0;">
+          "${ai.parentBriefing}"
+        </p>
+        
+        ${ai.parentCheckpoint ? `
+        <div style="margin-top: 10px; padding: 8px 10px; background: white; border: 1px solid #dcfce7; border-radius: 6px; font-size: 11px; color: #15803d;">
+          <strong>🔑 Parent Checkpoint:</strong> ${ai.parentCheckpoint}
+        </div>` : ''}
+
+        <div style="font-size: 9px; color: #166534; font-weight: 700; text-align: right; margin-top: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+          — Academic Director, BioRivet Elite Coaching
+        </div>
+      </div>
+
+    </div>
+  `;
+}
+
+// ── PRESCRIPTION ENGINE MODE TOGGLE ─────────────────────────────────
+window.BIORIVET_PRESCRIPTION_MODE = 'mode1'; // default: Friendly Teacher!
+function setPrescriptionMode(mode, gIdx) {
+  window.BIORIVET_PRESCRIPTION_MODE = mode;
+  const btn1 = document.getElementById(`mode-btn-1-${gIdx}`);
+  const btn2 = document.getElementById(`mode-btn-2-${gIdx}`);
+  const btn3 = document.getElementById(`mode-btn-3-${gIdx}`);
+  
+  if (btn1 && btn2 && btn3) {
+    [btn1, btn2, btn3].forEach(b => {
+      b.style.background = 'white';
+      b.style.color = '#64748b';
+      b.style.borderColor = '#e2e8f0';
+    });
+    const activeBtn = mode === 'mode1' ? btn1 : mode === 'mode2' ? btn2 : btn3;
+    activeBtn.style.background = '#10b981';
+    activeBtn.style.color = 'white';
+    activeBtn.style.borderColor = '#10b981';
+  }
+}
+
+let batchAICancelled = false;
+
+async function triggerAIPrescriptionSilent(index) {
+  const s = RPT.studentReports[index];
+  if (s.aiReport) return; // already generated
+
+  const studentData = {
+    name: s.name,
+    prescriptionMode: window.BIORIVET_PRESCRIPTION_MODE || 'mode1',
+    performance: {
+      score: s.score,
+      neetMarks: s.neetMarks,
+      maxMarks: s.maxMarks,
+      totalCorrect: s.totalCorrect,
+      totalWrong: s.totalWrong,
+      totalUnattempted: s.totalUnattempted,
+      marksPct: s.marksPct,
+      priority: s.priority,
+      w1: s.w1,
+      w2: s.w2,
+      chapterWrong: s.chapWrong,
+      chapterTotals: s.chapTotals,
+      errorTypeBreakdown: s.errWrong,
+      errorBreakdown: s.errWrong,       // alias so server rubric can read it
+      cogStats: s.cogStats || {},       // cognitive breakdown: Recall/Analysis/Evaluation
+      topSubs: s.topSubs ? s.topSubs.map(([sub, w]) => ({ sub, wrongCount: w })) : []
+    }
+  };
+
+  const incorrectQuestions = [];
+  const ANSKEY = QP.questions.map(q => q.ans);
+  QP.questions.forEach((q, qi) => {
+    const a = s.answers[qi];
+    if (a !== '' && a !== ANSKEY[qi]) {
+      incorrectQuestions.push({
+        qno: q.qno,
+        text: q.text || '—',
+        subject: q.subject || 'Unknown',
+        chapter: q.chapter,
+        sub: q.sub || '—',
+        errorType: q.errorType,
+        cognitiveType: q.cognitiveType || 'Concept Application',
+        cognitiveLevel: q.cognitiveLevel || '—',
+        ncertDirectness: q.ncertDirectness || '—',
+        formatType: q.formatType || '—',
+        correctAnswer: ANSKEY[qi],
+        studentAnswer: a
+      });
+    }
+  });
+
+  const testMetadata = { incorrectQuestions };
+
+  const res = await fetch('/api/generate-prescription', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ studentData, testMetadata })
+  });
+
+  const data = await res.json();
+  if (data.error) {
+    throw new Error(data.error);
+  }
+
+  // Save report to state
+  s.aiReport = data;
+
+  // Attach student's raw performance snapshot for the shareable card.
+  // priorityChapter comes from the AI report itself (server already ranked it) — no client weight map needed.
+  const topIncorrect = incorrectQuestions[0] || {};
+  s.aiReport._studentSnapshot = {
+    name: s.name,
+    neetMarks: s.neetMarks,
+    maxMarks: s.maxMarks,
+    totalCorrect: s.totalCorrect,
+    totalWrong: s.totalWrong,
+    totalUnattempted: s.totalUnattempted,
+    subjectPct: s.subjectPct || {},
+    w1: s.w1,
+    priorityChapter: {
+      chapter: data.actionPlan?.tonightHomework?.chapter || topIncorrect.chapter || s.w1 || '—',
+      subject: data.actionPlan?.tonightHomework?.subject || topIncorrect.subject || 'Physics'
+    },
+    languageMode: window.BIORIVET_LANGUAGE || 'english'
+  };
+
+  // Update raw plan text to be used in exports
+  let plainTextPlan = `Director's Operational Diagnosis:\n"${data.academicSummary}"\n\n`;
+  plainTextPlan += `Error Forensics:\n- Conceptual Flaws: ${data.errorAnalysis.conceptualCount}\n- Application Gaps: ${data.errorAnalysis.applicationCount}\n- Behavioral Errors: ${data.errorAnalysis.behavioralCount}\n\n`;
+  plainTextPlan += `Audit Details: ${data.errorAnalysis.forensicDeepDive}\n\n`;
+  plainTextPlan += `Chronological Roadmap:\n`;
+  const ap2 = data.actionPlan;
+  function slotText(label, slot) {
+    if (!slot) return '';
+    return `[${label}] ${slot.subject || ''} — ${slot.chapter || ''} | ${slot.taskType || ''} | ⏱ ${slot.durationMinutes || '?'} min\n  Resource: ${slot.resource || slot.ncertCoordinates || '—'}\n  Homework: ${slot.taskInHinglish || slot.tacticalTask || '—'}\n  Self-Check: ${slot.selfCheck || '—'}\n  Mentor Note: ${slot.mentorNote || '—'}\n`;
+  }
+  plainTextPlan += slotText('Tonight — Priority #1', ap2.tonightHomework);
+  plainTextPlan += slotText('Day 2', ap2.day2Task);
+  plainTextPlan += slotText('Day 3-4', ap2.day3_4Task);
+  if (ap2.day5MiniTest) plainTextPlan += `[Day 5 — Self Test] ⏱ ${ap2.day5MiniTest.durationMinutes || '?'} min\n  Instructions: ${ap2.day5MiniTest.instructions || '—'}\n  Pass Criteria: ${ap2.day5MiniTest.passCriteria || '—'}\n`;
+  plainTextPlan += slotText('Day 6-7 Consolidation', ap2.day6_7Consolidation);
+  plainTextPlan += `\nDirector's Briefing to Parents:\n"${data.parentBriefing}"`;
+
+  s._planText = plainTextPlan.replace(/\n/g, '<br>');
+
+  // Render AFTER _studentSnapshot is attached so the card button has complete data
+  const container = document.getElementById('action-plan-container-' + index);
+  if (container) {
+    container.innerHTML = renderAIPrescriptionHTML(s.aiReport);  // use s.aiReport (has _studentSnapshot), not raw data
+  }
+}
+
+async function triggerAIPrescription(index) {
+  const btn = document.getElementById('ai-btn-' + index);
+  const container = document.getElementById('ai-cta-container-' + index);
+  let originalText = '';
+  if (btn) {
+    originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<span style="opacity:0.7">Analyzing...</span>`;
+  }
+  if (container) {
+    container.style.opacity = '0.7';
+  }
+
+  try {
+    await triggerAIPrescriptionSilent(index);
+  } catch (err) {
+    console.error(err);
+    alert("Error generating prescription: " + err.message);
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
+    if (container) {
+      container.style.opacity = '1';
+    }
+  }
+}
+
+async function triggerBatchAIPrescriptions() {
+  if (!RPT || !RPT.studentReports) {
+    alert('No student reports loaded. Please load student data first.');
+    return;
+  }
+
+  const students = RPT.studentReports;
+  
+  // Find all students without an AI report
+  const pendingIndices = [];
+  students.forEach((s, idx) => {
+    if (!s.aiReport) {
+      pendingIndices.push(idx);
+    }
+  });
+
+  if (pendingIndices.length === 0) {
+    alert('AI Prescriptions have already been generated for all students in the current batch.');
+    return;
+  }
+
+  // Show progress card
+  const progressCard = document.getElementById('batch-ai-progress-card');
+  progressCard.style.display = 'block';
+  batchAICancelled = false;
+
+  const progressBar = document.getElementById('batch-ai-progress-bar');
+  const progressText = document.getElementById('batch-ai-progress-text');
+  const progressTitle = document.getElementById('batch-ai-progress-title');
+  const progressEta = document.getElementById('batch-ai-progress-eta');
+
+  let processedCount = 0;
+  const startTime = Date.now();
+
+  for (let i = 0; i < pendingIndices.length; i++) {
+    if (batchAICancelled) break;
+
+    const index = pendingIndices[i];
+    const s = students[index];
+
+    // Update progress card UI
+    progressTitle.innerHTML = `✨ Generating Batch AI Prescriptions: Processing <strong>${s.name}</strong>...`;
+    const pct = Math.round((processedCount / pendingIndices.length) * 100);
+    progressBar.style.width = pct + '%';
+    progressText.innerText = `Processed: ${processedCount} / ${pendingIndices.length} pending students (${pct}% done)`;
+
+    if (processedCount > 0) {
+      const elapsed = Date.now() - startTime;
+      const avgTime = elapsed / processedCount;
+      const remaining = pendingIndices.length - processedCount;
+      const etaMs = avgTime * remaining;
+      const etaSec = Math.ceil(etaMs / 1000);
+      progressEta.innerText = `ETA: ~${etaSec}s remaining`;
+    } else {
+      progressEta.innerText = 'ETA: Calculating...';
+    }
+
+    try {
+      await triggerAIPrescriptionSilent(index);
+    } catch (err) {
+      console.error(`Error generating prescription for student ${s.name}:`, err);
+    }
+
+    processedCount++;
+  }
+
+  // Final UI update
+  progressBar.style.width = '100%';
+  progressText.innerText = batchAICancelled ? `Batch stopped. Processed ${processedCount} / ${pendingIndices.length} students.` : `Done! Processed all ${pendingIndices.length} students.`;
+  progressTitle.innerHTML = batchAICancelled ? `⚠️ Batch Generation Stopped` : `✨ Batch Generation Completed Successfully!`;
+  progressEta.innerText = '';
+
+  // Auto-hide card after 5 seconds if fully completed
+  if (!batchAICancelled) {
+    setTimeout(() => {
+      progressCard.style.display = 'none';
+    }, 5000);
+  }
+}
+
+function cancelBatchAIPrescriptions() {
+  batchAICancelled = true;
+  const progressTitle = document.getElementById('batch-ai-progress-title');
+  if (progressTitle) {
+    progressTitle.innerHTML = `Stopping batch...`;
+  }
+}
+
+function sortStudents(key) {
+  if(key===SORT_KEY) SORT_DIR*=-1; else { SORT_KEY=key; SORT_DIR=key==='wrong'?-1:1; }
+  renderSecB(key);
+}
+
+function generateReport() {
+  if(!QP||!SA) { alert('Please upload both question paper and student answers first.'); return; }
+  RPT = computeReport();
+  renderSummaryCards();
+  renderSecA();
+  renderSecB('name');
+  renderSecC();
+  renderSecD();
+  const step3Nav = document.getElementById('step3-nav');
+  if (step3Nav) {
+    step3Nav.classList.remove('locked');
+  }
+  gotoStep(3);
+}
+
+// ══════════════════════════════════════════════════════════════
+// REPORT TABS
+// ══════════════════════════════════════════════════════════════
+function showRTab(t) {
+  ['a','b','c','d'].forEach(x => {
+    document.getElementById('rpt-'+x).style.display=x===t?'':'none';
+    document.getElementById('rtab-'+x).className='rtab'+(x===t?' active':'');
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// SECTION C — BATCH INSIGHTS (NEET-aware)
+// ══════════════════════════════════════════════════════════════
+function renderSecC() {
+  const r=RPT;
+  const total=r.N*r.totalQ;
+  const topErr=r.mem>=r.con&&r.mem>=r.app?'Memory':r.con>=r.app?'Conceptual':'Application';
+  const maxBatchMarks = r.totalQ * 4;
+  const avgPct = Math.round((r.avgNeetMarks/maxBatchMarks)*100);
+  // NEET-calibrated risk label text
+  const riskNote = `High risk = NEET marks < ${Math.round(maxBatchMarks*0.25)} · Medium = ${Math.round(maxBatchMarks*0.25)}–${Math.round(maxBatchMarks*0.50)} · Low = above ${Math.round(maxBatchMarks*0.50)}`;
+  const insights=[
+    {c:'#B71C1C',bg:'#FFEBEE', t:`Biggest gap: <strong>${r.worstCh}</strong> has the highest error rate across the batch. Schedule one dedicated 45-min revision class on this chapter before the next test cycle.`},
+    {c:'#1B5E20',bg:'#E8F5E9', t:`Strongest area: <strong>${r.bestCh}</strong> shows the best batch accuracy. Students have retained this chapter well — reduce revision time here.`},
+    {c:'#E65100',bg:'#FFF8E1', t:`NEET marks summary: Batch average is <strong>${r.avgNeetMarks} / ${maxBatchMarks}</strong> (${avgPct}%). Risk split — <strong>${r.highRisk} High</strong> · <strong>${r.medRisk} Medium</strong> · <strong>${r.lowRisk} Low</strong>. <span style="font-size:11px;color:#888">${riskNote}</span>`},
+    {c:'#283593',bg:'#E8EAF6', t:`Dominant error type: <strong>${topErr}</strong>. Memory: ${r.mem} · Conceptual: ${r.con} · Application: ${r.app}. ${topErr==='Conceptual'?'Focus on understanding mechanisms, not rote facts.':topErr==='Application'?'Students understand concepts but struggle to apply — more timed MCQ practice.':'Spaced repetition and active recall drills will help.'}`},
+    {c:'#1F3864',bg:'#E3F2FD', t:`Recommended batch action: Group all high-risk students for a focused session on <strong>${r.worstCh}</strong>. ${r.hardestQs.length>0?`Also revisit the ${r.hardestQs.length} hardest question(s) in Section D — these had >50% wrong rate across the batch.`:''} Re-test within 7 days to measure improvement.`},
+  ];
+  document.getElementById('rpt-c-body').innerHTML=insights.map(ins=>
+    `<div class="insight" style="background:${ins.bg}">
+      <div class="idot" style="background:${ins.c}"></div>
+      <p style="font-size:13px;line-height:1.7">${ins.t}</p>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════════
+// SECTION D — HARDEST QUESTIONS (#5)
+// ══════════════════════════════════════════════════════════════
+function renderSecD() {
+  const tbody = document.getElementById('rpt-d-body');
+  const empty = document.getElementById('rpt-d-empty');
+  tbody.innerHTML='';
+  if(RPT.hardestQs.length===0) {
+    empty.style.display='';
+    return;
+  }
+  empty.style.display='none';
+  RPT.hardestQs.forEach(q => {
+    const pct=Math.round(q.hardness*100);
+    const barC = pct>=80?'#B71C1C':pct>=65?'#E65100':'#FB8C00';
+    const {bg,tc}=RPT.chapColors[q.chapter]||{bg:'#eee',tc:'#333'};
+    const ec = q.errorType==='Memory'?'#FFF2CC':q.errorType==='Conceptual'?'#FCE4D6':'#E2EFDA';
+    const et = q.errorType==='Memory'?'#7B6000':q.errorType==='Conceptual'?'#7B2D00':'#1E4620';
+    tbody.innerHTML+=`<tr>
+      <td style="font-weight:700;color:#2E5EA8">${q.qno}</td>
+      <td style="max-width:280px;font-size:11px">${q.text||'—'}</td>
+      <td><span class="ch-badge" style="background:${bg};color:${tc}">${q.chapter}</span></td>
+      <td style="font-size:11px;color:#555">${q.sub||'—'}</td>
+      <td><span style="background:${ec};color:${et};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">${q.errorType||'—'}</span></td>
+      <td class="ctr">${q.attempted}</td>
+      <td class="ctr" style="font-weight:700;color:#B71C1C">${q.wrong}</td>
+      <td class="ctr" style="font-weight:700;color:${barC}">${pct}%</td>
+      <td><div class="pbar"><div class="pfill" style="width:${pct}%;background:${barC}"></div></div></td>
+    </tr>`;
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// EXCEL EXPORT
+// ══════════════════════════════════════════════════════════════
+function exportExcel() {
+  if(!RPT) return;
+  const wb=XLSX.utils.book_new();
+  const ANSKEY=QP.questions.map(q=>q.ans);
+
+  // Sheet 1: Student Data with NEET marks
+  const sd=[['Student Name',...QP.questions.map(q=>q.qno),'Correct','Wrong','Unattempted','NEET Marks','Max Marks','Accuracy %','Priority']];
+  RPT.studentReports.forEach(s => {
+    sd.push([s.name,...s.answers,s.totalCorrect,s.totalWrong,s.totalUnattempted,
+             s.neetMarks,s.maxMarks,s.pct+'%',s.priority.toUpperCase()]);
+  });
+  const ws1=XLSX.utils.aoa_to_sheet(sd);
+  ws1['!cols']=[{wch:22},...Array(QP.questions.length).fill({wch:5}),{wch:10},{wch:8},{wch:12},{wch:12},{wch:10},{wch:12},{wch:10}];
+  XLSX.utils.book_append_sheet(wb,ws1,'Student Data');
+
+  // Sheet 2: Chapter Analysis
+  const ca=[['Chapter','Questions','Total Wrong','Max Possible','Error Rate %','Weakness Level']];
+  Object.entries(RPT.chapterStats).forEach(([ch,s]) => {
+    ca.push([ch,s.qs,s.totalWrong,s.max,Math.round(s.pct*100)+'%',
+      s.level==='critical'?'CRITICAL GAP':s.level==='needs'?'NEEDS ATTENTION':'STRONG']);
+  });
+  const ws2=XLSX.utils.aoa_to_sheet(ca);
+  ws2['!cols']=[{wch:20},{wch:16},{wch:14},{wch:14},{wch:14},{wch:18}];
+  XLSX.utils.book_append_sheet(wb,ws2,'Chapter Analysis');
+
+  // Sheet 3: Individual Diagnosis with action plan text (#10)
+  const chapKeys = Object.keys(QP.chapGroups);
+  const id=[['Student','NEET Marks','Max Marks','Correct','Wrong','Unattempted','Accuracy %',
+             'Weakest Chapter (rate)','2nd Weakest','Priority','Error Profile (Mem/Con/App)',
+             ...chapKeys.map(c=>c+' Wrong'),
+             ...chapKeys.map(c=>c+' Wrong Rate %'),
+             'Top Weak Sub-Concepts','Action Plan Summary']];
+  RPT.studentReports.forEach(s => {
+    // Strip HTML from plan for Excel
+    const planDiv=document.createElement('div');
+    planDiv.innerHTML=s._planText||'';
+    const planText=planDiv.textContent||planDiv.innerText||'';
+    const errProfile=`Mem:${s.errWrong.Memory||0} Con:${s.errWrong.Conceptual||0} App:${s.errWrong.Application||0}`;
+    const topSubsText=s.topSubs.map(([sub,w])=>`${sub}(${w})`).join(', ');
+    id.push([s.name, s.neetMarks, s.maxMarks, s.totalCorrect, s.totalWrong, s.totalUnattempted,
+             s.pct+'%', s.w1, s.w2, s.priority.toUpperCase(), errProfile,
+             ...chapKeys.map(c=>s.chapWrong[c]||0),
+             ...chapKeys.map(c=>s.chapTotals[c]>0?Math.round(((s.chapWrong[c]||0)/s.chapTotals[c])*100)+'%':'—'),
+             topSubsText, planText]);
+  });
+  const ws3=XLSX.utils.aoa_to_sheet(id);
+  ws3['!cols']=[{wch:22},{wch:12},{wch:10},{wch:10},{wch:8},{wch:12},{wch:10},{wch:22},{wch:22},{wch:10},{wch:20},
+               ...Array(chapKeys.length*2).fill({wch:14}),{wch:30},{wch:60}];
+  XLSX.utils.book_append_sheet(wb,ws3,'Individual Diagnosis');
+
+  // Sheet 4: Hardest Questions (#5)
+  const hq=[['Q No','Question','Subject','Chapter','Sub-Concept','Error Type','Cognitive Type','Students Attempted','Wrong','Wrong Rate %']];
+  RPT.hardestQs.forEach(q=>{
+    hq.push([q.qno,q.text,q.subject||'Biology',q.chapter,q.sub||'—',q.errorType||'—',q.cognitiveType||'Concept Application',q.attempted,q.wrong,Math.round(q.hardness*100)+'%']);
+  });
+  if(RPT.hardestQs.length===0) hq.push(['No questions with ≥50% wrong rate found.']);
+  const ws4=XLSX.utils.aoa_to_sheet(hq);
+  ws4['!cols']=[{wch:6},{wch:60},{wch:12},{wch:18},{wch:28},{wch:14},{wch:20},{wch:18},{wch:8},{wch:12}];
+  XLSX.utils.book_append_sheet(wb,ws4,'Hardest Questions');
+
+  // Sheet 5: Question Bank
+  const qb=[['Q No','Question','Subject','Chapter','Sub-Concept','Error Type','Cognitive Type','Answer Key']];
+  QP.questions.forEach(q => { qb.push([q.qno,q.text,q.subject||'Biology',q.chapter,q.sub,q.errorType,q.cognitiveType||'Concept Application',q.ans]); });
+  const ws5=XLSX.utils.aoa_to_sheet(qb);
+  ws5['!cols']=[{wch:6},{wch:65},{wch:12},{wch:18},{wch:28},{wch:14},{wch:20},{wch:10}];
+  XLSX.utils.book_append_sheet(wb,ws5,'Question Bank');
+
+  XLSX.writeFile(wb,'BioRivet_Diagnostic_Report.xlsx');
+}
+
+// ══════════════════════════════════════════════════════════════
+// TEMPLATES & SAMPLE
+// ══════════════════════════════════════════════════════════════
+function downloadQPTemplate() {
+  const wb=XLSX.utils.book_new();
+  const data=[
+    ['Q No','Question','Subject','Chapter','Sub-Concept','Error Type','Cognitive Type','Answer'],
+    ['Q1','Which enzyme converts caseinogen to casein in stomach?','Biology','Digestion','Gastric Enzymes','Memory','Direct NCERT Line','A'],
+    ['Q2','Chylomicrons are rich in which type of lipid?','Biology','Digestion','Lipid Absorption','Memory','Direct NCERT Line','B'],
+    ['Q3','Which node is the natural pacemaker of the heart?','Biology','Circulation','Cardiac Conduction','Memory','Direct NCERT Line','B'],
+    ['Q4','P-wave in ECG represents which cardiac event?','Biology','Circulation','ECG','Memory','Direct NCERT Line','C'],
+    ['Q5','Maximum water reabsorption occurs in which part of nephron?','Biology','Excretion','Nephron Function','Conceptual','Concept Application','A'],
+  ];
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  ws['!cols']=[{wch:6},{wch:60},{wch:12},{wch:18},{wch:26},{wch:14},{wch:20},{wch:8}];
+  XLSX.utils.book_append_sheet(wb,ws,'Question Bank');
+  XLSX.writeFile(wb,'question_paper_template.xlsx');
+}
+
+function downloadSATemplate() {
+  if(!QP) { alert('Please upload the question paper first so the template matches your questions.'); return; }
+  const header=['Student Name',...QP.questions.map(q=>q.qno)];
+  const row1=['Example Student',...QP.questions.map(q=>q.ans)];
+  const row2=['Student 2',...Array(QP.questions.length).fill('')];
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet([header,row1,row2]);
+  ws['!cols']=[{wch:22},...Array(QP.questions.length).fill({wch:5})];
+  XLSX.utils.book_append_sheet(wb,ws,'Student Answers');
+  XLSX.writeFile(wb,'student_answers_template.xlsx');
+}
+
+function loadSampleStudents() {
+  if(!QP) { alert('Please upload the question paper first.'); return; }
+  const names=['Aarav Singh','Priya Sharma','Ravi Kumar','Sneha Patel','Kiran Reddy',
+    'Anjali Gupta','Arjun Nair','Divya Menon','Rahul Verma','Pooja Iyer',
+    'Siddharth Joshi','Kavya Rao','Mohit Tiwari','Neha Desai','Arun Pillai',
+    'Shreya Mishra','Vikram Chauhan','Ananya Das','Rohit Yadav','Meera Nambiar'];
+  const opts=['A','B','C','D'];
+  // Fix #11: seed from current time so each demo load gives different results
+  let s = Date.now() % 233280;
+  const rand=()=>{ s=(s*9301+49297)%233280; return s/233280; };
+  // Vary error rates per student so we get a realistic spread across priority tiers
+  SA=names.map((name, ni)=>{
+    // Students 0-4: high error rate (~60%), 5-12: medium (~40%), 13-19: low (~20%)
+    const errRate = ni < 5 ? 0.55 + rand()*0.2
+                  : ni < 13 ? 0.30 + rand()*0.2
+                  : 0.10 + rand()*0.15;
+    return {
+      name,
+      answers: QP.questions.map(q=>{
+        if(rand() < errRate){ const w=opts.filter(o=>o!==q.ans); return w[Math.floor(rand()*3)]; }
+        // Occasionally leave blank (unattempted) for realism
+        if(rand() < 0.04) return '';
+        return q.ans;
+      })
+    };
+  });
+  showOk('sa', SA.length+' sample students loaded (varied difficulty spread for demo).');
+  renderSAPreview();
+}
+
+// ══════════════════════════════════════════════════════════════
+// INDIVIDUAL STUDENT DOC
+function genStudentDOC(name) {
+  const s = RPT.studentReports.find(x => x.name === name);
+  if(!s){alert('Student not found');return;}
+  const KEY = QP.questions.map(q=>q.ans);
+
+  const tierLabel = s.marksPct < 10 ? 'Critical' : s.marksPct < 35 ? 'High Risk' : s.marksPct < 55 ? 'Medium Risk' : 'Low Risk';
+  const marksColor = s.priority==='high'?'#B71C1C':s.priority==='medium'?'#E65100':'#1B5E20';
+
+  const chapRows = Object.entries(QP.chapGroups).map(([ch, indices]) => {
+    const cstat = RPT.chapterStats[ch];
+    const cw2 = s.chapWrong[ch] || 0;
+    const qcount = indices.length;
+    const correct = qcount - cw2 - (s.chapUnattempted[ch] || 0);
+    const pct = qcount>0 ? Math.round((correct/qcount)*100) : 0;
+    const wrongRate = qcount>0 ? Math.round((cw2/qcount)*100) : 0;
+    // Badge must reflect THIS student's own accuracy, not the batch-level cstat.level
+    const studentLevel = pct>=70?'strong':pct>=50?'needs':'critical';
+    const badge = studentLevel==='critical'?'[!] Critical':studentLevel==='needs'?'&#8594; Review':'[+] Strong';
+    const bc = pct>=70?'#27ae60':pct>=50?'#f39c12':'#e74c3c';
+    // Batch context shown separately below the badge (informational only)
+    const batchBadge = cstat ? (cstat.level==='critical'?'Batch: Weak':cstat.level==='needs'?'Batch: Mixed':'Batch: Strong') : '';
+    return `
+      <tr>
+        <td style="padding:10px; border-bottom:1px solid #ddd; font-family:Arial,sans-serif;"><strong>${ch}</strong></td>
+        <td style="padding:10px; border-bottom:1px solid #ddd; color:#666; font-family:Arial,sans-serif;">${correct}/${qcount} correct (${wrongRate}% wrong)<br><span style="color:${bc};font-size:11px;font-weight:bold;">${badge}</span>${batchBadge?`<span style="color:#999;font-size:10px;margin-left:6px;">(${batchBadge})</span>`:''}</td>
+        <td style="padding:10px; border-bottom:1px solid #ddd; width:200px;">
+          <div style="background:#e2e8f0; width:100%; height:12px; border-radius:6px; overflow:hidden;">
+            <div style="background:${bc}; width:${Math.max(pct,2)}%; height:100%;"></div>
+          </div>
+        </td>
+        <td style="padding:10px; border-bottom:1px solid #ddd; font-weight:bold; color:${bc}; font-family:Arial,sans-serif;">${pct}%</td>
+      </tr>
+    `;
+  }).join('');
+
+  const cols = 10;
+  let gridHtml = '<table width="100%" style="border-collapse:collapse; text-align:center; font-family:Arial,sans-serif; font-size:11px;">';
+  for (let i = 0; i < QP.questions.length; i += cols) {
+    gridHtml += '<tr>';
+    for (let j = 0; j < cols; j++) {
+      const qi = i + j;
+      if (qi < QP.questions.length) {
+        const q = QP.questions[qi];
+        const ans = s.answers[qi];
+        const correctAns = KEY[qi];
+        const ok = ans === correctAns;
+        const blank = ans === '';
+        const bg = blank ? '#f0f0f5' : ok ? '#dcfce7' : '#fee2e2';
+        const tc = blank ? '#64748b' : ok ? '#15803d' : '#b91c1c';
+        const txt = blank ? '-' : ok ? ans : `${correctAns} &rarr; ${ans}`;
+        gridHtml += `<td style="border:3px solid white; background:${bg}; color:${tc}; padding:10px; width:10%;">
+          <div style="font-size:9px; color:#888; margin-bottom:4px;">Q${q.qno}</div>
+          <div style="font-weight:bold; font-size:12px;">${txt}</div>
+        </td>`;
+      } else {
+        gridHtml += '<td style="border:3px solid white; width:10%;"></td>';
+      }
+    }
+    gridHtml += '</tr>';
+  }
+  gridHtml += '</table>';
+
+  let planHtml = '';
+  if (s.aiReport) {
+    const ai = s.aiReport;
+    const conceptual = ai.errorAnalysis.conceptualCount || 0;
+    const application = ai.errorAnalysis.applicationCount || 0;
+    const behavioral = ai.errorAnalysis.behavioralCount || 0;
+    const isMode1 = !ai.actionPlan.tonightHomework.whyJustification;
+
+    function docSlot(label, labelColor, labelBg, borderColor, slot) {
+      if (!slot) return '';
+      return `<div style="margin-bottom:12px; padding:10px 12px; background:#fff; border:1px solid #e2e8f0; border-radius:6px; border-left:4px solid ${borderColor}; font-family:Arial,sans-serif;">
+        <div style="margin-bottom:5px;">
+          <span style="font-size:11px; font-weight:bold; color:${labelColor}; background:${labelBg}; padding:2px 7px; border-radius:12px;">${label}</span>
+          <span style="font-size:10px; color:#0369a1; background:#e0f2fe; padding:1px 6px; border-radius:4px; margin-left:5px;">${slot.subject||''}</span>
+          <span style="font-size:10px; color:#15803d; background:#dcfce7; padding:1px 6px; border-radius:4px; margin-left:4px;">${slot.taskType||''}</span>
+          <span style="font-size:10px; color:#64748b; background:#f1f5f9; padding:1px 6px; border-radius:8px; margin-left:4px;">⏱ ${slot.durationMinutes||'?'} min</span>
+        </div>
+        <div style="font-size:11px; font-weight:700; color:#1e293b; margin-bottom:3px;">📖 ${slot.chapter||'—'}</div>
+        <div style="font-size:11px; color:#475569; margin-bottom:4px;"><strong>Resource:</strong> ${slot.resource||slot.ncertCoordinates||'—'}</div>
+        
+        ${slot.whyJustification ? `<div style="font-size:10px; color:#1e3a8a; background:#eff6ff; border-left:3px solid ${borderColor}; padding:4px 7px; margin-bottom:5px;"><strong>Rationale:</strong> ${slot.whyJustification}</div>` : ''}
+
+        <div style="font-size:11px; color:#1e293b; background:#fafaf9; border-left:3px solid ${borderColor}; padding:5px 8px; margin-bottom:5px; line-height:1.5;"><strong>📝 Homework:</strong> ${slot.taskInHinglish||slot.tacticalTask||'—'}</div>
+        <div style="font-size:10px; color:#065f46; background:#ecfdf5; border-radius:4px; padding:4px 7px; margin-bottom:3px;"><strong>✅ Self-Check:</strong> ${slot.selfCheck||'—'}</div>
+        <div style="font-size:10px; color:#92400e; background:#fffbeb; border-radius:4px; padding:4px 7px;"><strong>💬 Mentor Note:</strong> ${slot.mentorNote||'—'}</div>
+      </div>`;
+    }
+
+    const planRows = `
+      ${docSlot('🔥 Tonight — Priority #1', '#7c3aed', '#ede9fe', '#7c3aed', ai.actionPlan.tonightHomework)}
+      ${docSlot('📘 Day 2', '#1e40af', '#dbeafe', '#1e40af', ai.actionPlan.day2Task)}
+      ${docSlot('📗 Day 3–4', '#166534', '#dcfce7', '#166534', ai.actionPlan.day3_4Task)}
+      ${ai.actionPlan.day5MiniTest ? `<div style="margin-bottom:12px; padding:10px 12px; background:#fff; border:2px solid #f59e0b; border-radius:6px; font-family:Arial,sans-serif;">
+        <div style="font-size:11px; font-weight:bold; color:#92400e; background:#fef3c7; padding:2px 8px; border-radius:12px; display:inline-block; margin-bottom:6px;">🧪 Day 5 — Self Test ⏱ ${ai.actionPlan.day5MiniTest.durationMinutes||'?'} min</div>
+        
+        ${ai.actionPlan.day5MiniTest.whyJustification ? `<div style="font-size:10px; color:#1e3a8a; background:#eff6ff; border-left:3px solid #f59e0b; padding:4px 7px; margin-bottom:5px;"><strong>Rationale:</strong> ${ai.actionPlan.day5MiniTest.whyJustification}</div>` : ''}
+
+        <div style="font-size:11px; color:#1e293b; background:#fafaf9; border-left:3px solid #f59e0b; padding:5px 8px; margin-bottom:5px; line-height:1.5;"><strong>Instructions:</strong> ${ai.actionPlan.day5MiniTest.instructions||'—'}</div>
+        <div style="font-size:10px; color:#065f46; background:#ecfdf5; border-radius:4px; padding:4px 7px;"><strong>🎯 Pass Criteria:</strong> ${ai.actionPlan.day5MiniTest.passCriteria||'—'}</div>
+      </div>` : ''}
+      ${docSlot('🎯 Day 6–7 Consolidation', '#9a3412', '#ffedd5', '#ea580c', ai.actionPlan.day6_7Consolidation)}
+    `;
+
+    planHtml = `
+      <div style="background:#f8fafc; border:1px solid #bfdbfe; border-radius:8px; padding:15px; margin-bottom:20px; font-family:Arial,sans-serif;">
+        <div style="background:#1F3864; color:white; padding:10px 15px; border-radius:6px; margin-bottom:15px;">
+          <h3 style="margin:0; color:white; font-size:16px; font-family:Arial,sans-serif;">${isMode1 ? "Personalised Action Plan" : "AI Academic Director's Diagnostic Portfolio"}</h3>
+        </div>
+        
+        <!-- Academic Summary -->
+        <div style="background:#fff; border-left:4px solid #1F3864; padding:10px 12px; margin-bottom:15px; font-style:italic; font-size:13px; color:#333; font-family:Arial,sans-serif;">
+          "${ai.academicSummary}"
+        </div>
+
+        <!-- Error Forensics -->
+        ${!isMode1 ? `
+        <div style="margin-bottom:15px; font-family:Arial,sans-serif;">
+          <h4 style="margin:0 0 8px 0; font-size:12px; color:#666; text-transform:uppercase; font-family:Arial,sans-serif;">Error Forensics</h4>
+          <table width="100%" cellspacing="5" cellpadding="5" style="font-size:11px; text-align:center; font-family:Arial,sans-serif;">
+            <tr>
+              <td style="background:#fdf2f2; border:1px solid #fde2e2; border-radius:4px; width:33%; padding:8px;">
+                <span style="color:#9b1c1c; font-weight:bold;">Conceptual Flaws</span><br>
+                <strong style="font-size:16px; color:#b91c1c;">${conceptual}</strong>
+              </td>
+              <td style="background:#f0f7ff; border:1px solid #e0f2fe; border-radius:4px; width:33%; padding:8px;">
+                <span style="color:#0369a1; font-weight:bold;">Application Gaps</span><br>
+                <strong style="font-size:16px; color:#0284c7;">${application}</strong>
+              </td>
+              <td style="background:#fff7ed; border:1px solid #ffedd5; border-radius:4px; width:33%; padding:8px;">
+                <span style="color:#c2410c; font-weight:bold;">Behavioral Errors</span><br>
+                <strong style="font-size:16px; color:#ea580c;">${behavioral}</strong>
+              </td>
+            </tr>
+          </table>
+          <div style="background:#fff; border:1px solid #ddd; border-radius:4px; padding:10px; margin-top:8px; font-size:12px; color:#444; font-family:Arial,sans-serif; display:flex; flex-direction:column; gap:6px;">
+            ${ai.errorAnalysis.rootCause ? `<div><strong>Root Cause:</strong> ${ai.errorAnalysis.rootCause}</div>` : ''}
+            <div><strong>Forensic Deep Dive:</strong> ${ai.errorAnalysis.forensicDeepDive}</div>
+          </div>
+        </div>
+        
+        <!-- Stop Doing & Success Signal -->
+        ${(ai.stopDoing || ai.successSignal) ? `
+        <table width="100%" cellspacing="5" cellpadding="5" style="font-size:11px; font-family:Arial,sans-serif; margin-bottom:15px;">
+          <tr>
+            ${ai.stopDoing ? `<td style="background:#fff5f5; border:1px dashed #feb2b2; border-radius:4px; padding:8px; width:50%; color:#9b2c2c; vertical-align:top;"><strong>🛑 Stop Doing:</strong> ${ai.stopDoing}</td>` : ''}
+            ${ai.successSignal ? `<td style="background:#f0fdf4; border:1px dashed #86efac; border-radius:4px; padding:8px; width:50%; color:#166534; vertical-align:top;"><strong>🎯 Success Signal:</strong> ${ai.successSignal}</td>` : ''}
+          </tr>
+        </table>` : ''}
+        ` : ''}
+
+        <!-- Action Timeline -->
+        <div style="background:#fff; border:1px solid #ddd; border-radius:4px; padding:12px; margin-bottom:15px; font-family:Arial,sans-serif;">
+          <h4 style="margin:0 0 10px 0; font-size:12px; color:#666; text-transform:uppercase; font-family:Arial,sans-serif;">Prescribed Timeline & Tasks</h4>
+          ${planRows}
+        </div>
+
+        ${ai.parentCheckpoint ? `
+        <div style="background:#fff8f0; border:1px solid #fed7aa; border-radius:8px; padding:12px 14px; margin-bottom:14px; font-family:Arial,sans-serif;">
+          <div style="font-size:11px; font-weight:800; color:#9a3412; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">👨‍👩‍👧 Parent Checkpoint — Ask Tonight</div>
+          <div style="font-size:12px; color:#1e293b; font-style:italic; line-height:1.6;">"${ai.parentCheckpoint}"</div>
+        </div>` : ''}
+        <!-- Parent Briefing -->
+        <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; padding:12px; font-family:Arial,sans-serif;">
+          <strong style="font-size:11px; color:#166534; text-transform:uppercase;">Director's Briefing to Parents</strong>
+          <p style="margin:4px 0 0 0; font-size:12px; color:#14532d; font-style:italic; font-family:Arial,sans-serif;">"${ai.parentBriefing}"</p>
+          <div style="font-size:10px; color:#166534; font-weight:bold; text-align:right; margin-top:8px; font-family:Arial,sans-serif;">— Academic Director, BioRivet</div>
+        </div>
+      </div>
+    `;
+  } else {
+    planHtml = `
+      <div style="background:#1F3864; color:white; padding:15px; border-radius:6px; margin-bottom:15px; font-family:Arial,sans-serif;">
+        <h3 style="margin:0; color:white; font-size:18px; font-family:Arial,sans-serif;">Personalised Action Plan</h3>
+        <span style="font-size:12px; color:#cbd5e1; font-family:Arial,sans-serif;">${tierLabel} &middot; Focus: ${s.w1} &middot; ${s.w2}</span>
+      </div>
+      
+      <div style="padding:10px; font-size:13px; color:#333; font-family:Arial,sans-serif;">
+        ${s._planText}
+      </div>
+    `;
+  }
+
+  const html = `
+  <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+  <head>
+    <meta charset='utf-8'>
+    <title>Diagnostic Report - ${s.name}</title>
+  </head>
+  <body style="font-family: 'Segoe UI', Arial, sans-serif; color: #333; line-height: 1.6;">
+    <div style="background-color: #1F3864; color: white; padding: 25px; margin-bottom: 20px;">
+      <h1 style="margin:0; color:white; font-size:24px;">BioRivet NEET Diagnostic Report</h1>
+      <p style="margin:5px 0 0 0; color:#cbd5e1; font-size:12px;">Generated: ${new Date().toLocaleDateString('en-IN')} | Know More. Fear Less.</p>
+    </div>
+    
+    <div style="padding: 0 20px;">
+      <h2 style="font-size: 28px; margin: 0 0 5px 0; color:#1F3864;">${s.name}</h2>
+      <p style="color:#666; margin-top:0; font-size:12px;">Individual Diagnostic Report | +4 Correct / -1 Wrong</p>
+      
+      <table width="100%" cellpadding="15" cellspacing="10" style="margin-bottom: 20px;">
+        <tr>
+          <td align="center" style="background:#f0f4fb; border-radius:8px; border:1px solid #e2e8f0; width:33%;">
+            <span style="font-size:11px; color:#666; text-transform:uppercase; font-weight:bold;">NEET Marks</span><br>
+            <strong style="font-size:26px; color:${marksColor};">${s.neetMarks} / ${s.maxMarks}</strong><br>
+            <span style="font-size:11px; color:#888;">${s.totalCorrect} correct, ${s.totalWrong} wrong</span>
+          </td>
+          <td align="center" style="background:#f0f4fb; border-radius:8px; border:1px solid #e2e8f0; width:33%;">
+            <span style="font-size:11px; color:#666; text-transform:uppercase; font-weight:bold;">Accuracy</span><br>
+            <strong style="font-size:26px; color:#1F3864;">${s.pct}%</strong>
+          </td>
+          <td align="center" style="background:#f0f4fb; border-radius:8px; border:1px solid #e2e8f0; width:33%;">
+            <span style="font-size:11px; color:#666; text-transform:uppercase; font-weight:bold;">Priority</span><br>
+            <strong style="font-size:26px; color:${marksColor}; text-transform:uppercase;">${s.priority}</strong>
+          </td>
+        </tr>
+      </table>
+
+      <h3 style="color:#1F3864; border-bottom:2px solid #e2e8f0; padding-bottom:8px;">Chapter Performance</h3>
+      <table width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 30px; border-collapse:collapse;">
+        ${chapRows}
+      </table>
+
+      <br clear=all style='mso-special-character:line-break;page-break-before:always'>
+
+      <h3 style="color:#1F3864; border-bottom:2px solid #e2e8f0; padding-bottom:8px;">Answer Analysis</h3>
+      <p style="font-size:11px; color:#666;">Correct answers are green. Wrong answers show [Key &rarr; Your Answer] in red. Blanks are grey.</p>
+      ${gridHtml}
+
+      <br clear=all style='mso-special-character:line-break;page-break-before:always'>
+
+      ${planHtml}
+      
+      ${s.topSubs && s.topSubs.length > 0 ? `
+        <h4 style="margin-top:25px; color:#1F3864;">Key Sub-Topics to Revise:</h4>
+        <ul style="font-size:13px; color:#444;">
+          ${s.topSubs.map(([sub,w])=>`<li style="margin-bottom:6px;"><strong>${sub}</strong> (${w} wrong)</li>`).join('')}
+        </ul>
+      ` : ''}
+
+      <br clear=all style='mso-special-character:line-break;page-break-before:always'>
+
+      <h3 style="color:#1F3864; border-bottom:2px solid #e2e8f0; padding-bottom:8px;">Missed Questions Detail</h3>
+      ${s.missedQuestions.length === 0 ? `
+        <p style="font-size:13px; color:#16a34a; font-weight:bold;">✓ Perfect Score! No questions were missed.</p>
+      ` : `
+        <table width="100%" cellpadding="6" cellspacing="0" style="border-collapse:collapse; font-size:11px; margin-bottom:30px; border:1px solid #ddd;">
+          <thead>
+            <tr style="background:#f1f5f9; text-align:left;">
+              <th style="border-bottom:2px solid #cbd5e1; padding:8px; border:1px solid #ddd;">Q No</th>
+              <th style="border-bottom:2px solid #cbd5e1; padding:8px; border:1px solid #ddd;">Subject</th>
+              <th style="border-bottom:2px solid #cbd5e1; padding:8px; border:1px solid #ddd;">Chapter / Sub-Concept</th>
+              <th style="border-bottom:2px solid #cbd5e1; padding:8px; border:1px solid #ddd;">Error Type</th>
+              <th style="border-bottom:2px solid #cbd5e1; padding:8px; border:1px solid #ddd;">Cognitive Type</th>
+              <th style="border-bottom:2px solid #cbd5e1; padding:8px; text-align:center; border:1px solid #ddd;">Key &rarr; Attempt</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${s.missedQuestions.map(mq => `
+              <tr>
+                <td style="border-bottom:1px solid #ddd; border:1px solid #ddd; padding:8px; font-weight:bold; color:#2e5ea8;">Q${mq.qno}</td>
+                <td style="border-bottom:1px solid #ddd; border:1px solid #ddd; padding:8px;">${mq.subject}</td>
+                <td style="border-bottom:1px solid #ddd; border:1px solid #ddd; padding:8px;"><strong>${mq.chapter}</strong><br><span style="color:#666;">${mq.sub}</span></td>
+                <td style="border-bottom:1px solid #ddd; border:1px solid #ddd; padding:8px;">${mq.errorType}</td>
+                <td style="border-bottom:1px solid #ddd; border:1px solid #ddd; padding:8px;">${mq.cognitiveType}</td>
+                <td style="border-bottom:1px solid #ddd; border:1px solid #ddd; padding:8px; text-align:center; font-weight:bold; color:#b91c1c;">${mq.correctAnswer} &rarr; ${mq.studentAnswer}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `}
+
+    </div>
+  </body>
+  </html>
+  `;
+
+  const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'BioRivet_' + s.name.replace(/\s+/g,'_') + '_Report.doc';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// ══════════════════════════════════════════════════════════════
+// BATCH SUMMARY DOC
+// ══════════════════════════════════════════════════════════════
+function genBatchDOC() {
+  if(!RPT){alert('Generate report first.');return;}
+  const r = RPT;
+  const avgPct = Math.round((r.avgNeetMarks/(r.totalQ*4))*100);
+
+  const chapRows = Object.entries(r.chapterStats).map(([ch, cs]) => {
+    const pct = Math.round(cs.pct*100);
+    const bc = cs.level==='critical'?'#e74c3c':cs.level==='needs'?'#f39c12':'#27ae60';
+    const badge = cs.level==='critical'?'[!] Critical':cs.level==='needs'?'&#8594; Attention':'[+] Strong';
+    return `
+      <tr>
+        <td style="padding:10px; border-bottom:1px solid #ddd; font-family:Arial,sans-serif;"><strong>${ch}</strong></td>
+        <td style="padding:10px; border-bottom:1px solid #ddd; color:#666; font-family:Arial,sans-serif;">${cs.totalWrong}/${cs.max} wrong</td>
+        <td style="padding:10px; border-bottom:1px solid #ddd; width:150px;">
+          <div style="background:#e2e8f0; width:100%; height:12px; border-radius:6px; overflow:hidden;">
+            <div style="background:${bc}; width:${Math.max(pct,2)}%; height:100%;"></div>
+          </div>
+        </td>
+        <td style="padding:10px; border-bottom:1px solid #ddd; font-weight:bold; color:${bc}; font-family:Arial,sans-serif;">${pct}%</td>
+        <td style="padding:10px; border-bottom:1px solid #ddd; color:${bc}; font-size:12px; font-family:Arial,sans-serif;">${badge}</td>
+      </tr>
+    `;
+  }).join('');
+
+  const topErr = r.mem>=r.con&&r.mem>=r.app?'Memory':r.con>=r.app?'Conceptual':'Application';
+  
+  const hiStudents = [...r.studentReports].filter(s=>s.priority==='high').sort((a,b)=>b.totalWrong-a.totalWrong).slice(0,10);
+  const hiRows = hiStudents.length === 0 
+    ? '<tr><td colspan="4" style="padding:15px; color:#27ae60; font-family:Arial,sans-serif;">No high-risk students. Excellent batch performance!</td></tr>'
+    : hiStudents.map(s => `
+      <tr>
+        <td style="padding:10px; border-bottom:1px solid #eee; font-family:Arial,sans-serif;"><strong>${s.name}</strong></td>
+        <td style="padding:10px; border-bottom:1px solid #eee; color:#666; font-family:Arial,sans-serif;">${s.neetMarks}/${s.maxMarks}</td>
+        <td style="padding:10px; border-bottom:1px solid #eee; color:#666; font-family:Arial,sans-serif;">${s.w1}</td>
+        <td style="padding:10px; border-bottom:1px solid #eee; color:#e74c3c; font-weight:bold; font-family:Arial,sans-serif;">${s.totalWrong} wrong</td>
+      </tr>
+    `).join('');
+
+  const html = `
+  <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+  <head>
+    <meta charset='utf-8'>
+    <title>Batch Summary Report</title>
+  </head>
+  <body style="font-family: 'Segoe UI', Arial, sans-serif; color: #333; line-height: 1.6;">
+    <div style="background-color: #1F3864; color: white; padding: 25px; margin-bottom: 20px;">
+      <h1 style="margin:0; color:white; font-size:24px;">BioRivet Batch Diagnostic Summary</h1>
+      <p style="margin:5px 0 0 0; color:#cbd5e1; font-size:12px;">Generated: ${new Date().toLocaleDateString('en-IN')} | Institute Confidential</p>
+    </div>
+    
+    <div style="padding: 0 20px;">
+      <table width="100%" cellpadding="15" cellspacing="10" style="margin-bottom: 30px;">
+        <tr>
+          <td align="center" style="background:#f0f4fb; border-radius:8px; border:1px solid #e2e8f0; width:25%;">
+            <span style="font-size:11px; color:#666; text-transform:uppercase; font-weight:bold;">Students</span><br>
+            <strong style="font-size:26px; color:#1F3864;">${r.N}</strong>
+          </td>
+          <td align="center" style="background:#f0f4fb; border-radius:8px; border:1px solid #e2e8f0; width:25%;">
+            <span style="font-size:11px; color:#666; text-transform:uppercase; font-weight:bold;">Avg NEET Marks</span><br>
+            <strong style="font-size:26px; color:#1F3864;">${r.avgNeetMarks} / ${r.totalQ*4}</strong>
+          </td>
+          <td align="center" style="background:#fee2e2; border-radius:8px; border:1px solid #fecaca; width:25%;">
+            <span style="font-size:11px; color:#666; text-transform:uppercase; font-weight:bold;">High Risk</span><br>
+            <strong style="font-size:26px; color:#b91c1c;">${r.highRisk}</strong>
+          </td>
+          <td align="center" style="background:#fff7ed; border-radius:8px; border:1px solid #fed7aa; width:25%;">
+            <span style="font-size:11px; color:#666; text-transform:uppercase; font-weight:bold;">Weakest Chapter</span><br>
+            <strong style="font-size:18px; color:#c2410c;">${r.worstCh}</strong>
+          </td>
+        </tr>
+      </table>
+
+      <h3 style="color:#1F3864; border-bottom:2px solid #e2e8f0; padding-bottom:8px;">Chapter-Wise Error Analysis</h3>
+      <table width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 30px; border-collapse:collapse;">
+        ${chapRows}
+      </table>
+
+      <br clear=all style='mso-special-character:line-break;page-break-before:always'>
+
+      <h3 style="color:#1F3864; border-bottom:2px solid #e2e8f0; padding-bottom:8px;">Top High-Risk Students</h3>
+      <table width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 30px; border-collapse:collapse; background:#f8fafc; border:1px solid #e2e8f0;">
+        ${hiRows}
+      </table>
+
+      <div style="background:#e0e7ff; padding:20px; border-radius:8px; border-left:5px solid #4338ca; margin-top:20px;">
+        <h3 style="margin-top:0; color:#3730a3; font-size:18px;">Key Recommendations</h3>
+        <ol style="margin-bottom:0; font-size:13px; color:#333; padding-left:20px;">
+          <li style="margin-bottom:8px;">Schedule a dedicated revision class on <strong>${r.worstCh}</strong> before next test cycle.</li>
+          <li style="margin-bottom:8px;"><strong>${r.highRisk}</strong> high-risk students need individual counselling this week.</li>
+          <li style="margin-bottom:8px;">Dominant error type is <strong>${topErr}</strong>. ${topErr==='Conceptual'?'Focus on understanding mechanisms, not rote facts.':topErr==='Application'?'Students understand concepts but struggle to apply — more timed MCQ practice.':'Spaced repetition and active recall drills will help.'}</li>
+          <li>Re-test all students on <strong>${r.worstCh}</strong> within 7 days.</li>
+        </ol>
+      </div>
+
+    </div>
+  </body>
+  </html>
+  `;
+
+  const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'BioRivet_Batch_Summary.doc';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// All student DOCs
+async function genAllStudentDOCs() {
+  if(!RPT){alert('Generate report first.');return;}
+  const sorted=[...RPT.studentReports].sort((a,b)=>b.neetMarks-a.neetMarks);
+  for(let i=0;i<sorted.length;i++){
+    genStudentDOC(sorted[i].name);
+    await new Promise(r=>setTimeout(r,500));
+  }
+}
+function showErr(type, msg) {
+  const el=document.getElementById(type+'-err');
+  el.textContent=msg; el.style.display='block';
+  document.getElementById(type+'-ok').style.display='none';
+}
+function showOk(type, msg) {
+  const el=document.getElementById(type+'-ok');
+  el.textContent='✓ '+msg; el.style.display='block';
+  document.getElementById(type+'-err').style.display='none';
+}
+function hideMsg(type) {
+  document.getElementById(type+'-err').style.display='none';
+  document.getElementById(type+'-ok').style.display='none';
+}
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     BIORIVET SHAREABLE CARD — MODAL + ENGINE
+     ═══════════════════════════════════════════════════════════════════ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<!-- Card Modal Overlay -->
+<div id="card-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(6,10,26,0.92);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:16px;">
+  <div style="position:relative;display:flex;flex-direction:column;align-items:center;gap:14px;max-height:100vh;overflow-y:auto;">
+
+    <!-- Close -->
+    <button onclick="closeCardModal()" style="position:absolute;top:-8px;right:-8px;z-index:10;width:32px;height:32px;border-radius:50%;background:#ffffff18;border:1px solid #ffffff22;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+
+    <!-- Institute name input (overlay) -->
+    <div style="display:flex;gap:8px;align-items:center;">
+      <label style="font-size:11px;color:#ffffff66;font-weight:600;">Institute Name:</label>
+      <input id="card-institute-input" type="text" placeholder="Your Institute Name" oninput="refreshCard()"
+        style="background:#ffffff12;border:1px solid #ffffff22;border-radius:8px;color:#fff;font-size:12px;padding:6px 12px;outline:none;width:240px;">
+      <label style="font-size:11px;color:#ffffff66;font-weight:600;margin-left:8px;">Test:</label>
+      <input id="card-test-input" type="text" placeholder="Mock Test 01" oninput="refreshCard()"
+        style="background:#ffffff12;border:1px solid #ffffff22;border-radius:8px;color:#fff;font-size:12px;padding:6px 12px;outline:none;width:160px;">
+    </div>
+
+    <!-- THE CARD -->
+    <div id="br-card" style="width:390px;height:692px;background:#060A1A;border-radius:24px;overflow:hidden;position:relative;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;box-shadow:0 32px 80px rgba(0,0,0,0.8),0 0 0 1px rgba(255,255,255,0.05);flex-shrink:0;">
+
+      <!-- Stars canvas -->
+      <canvas id="br-stars-canvas" width="390" height="692" style="position:absolute;inset:0;pointer-events:none;"></canvas>
+
+      <!-- Orb 1 -->
+      <div style="position:absolute;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(255,107,0,0.09) 0%,transparent 70%);top:-90px;right:-70px;pointer-events:none;"></div>
+      <!-- Orb 2 -->
+      <div style="position:absolute;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(59,130,246,0.09) 0%,transparent 70%);bottom:80px;left:-50px;pointer-events:none;"></div>
+
+      <!-- HEADER -->
+      <div style="position:relative;z-index:2;display:flex;justify-content:space-between;align-items:center;padding:22px 24px 0;">
+        <div style="font-size:14px;font-weight:900;color:#fff;letter-spacing:-0.3px;">Bio<span style="color:#FF6B00;">Rivet</span></div>
+        <div id="bc-test" style="font-size:10px;color:rgba(255,255,255,0.35);font-weight:600;letter-spacing:1px;text-transform:uppercase;">Mock Test 01</div>
+      </div>
+
+      <!-- NAME -->
+      <div style="position:relative;z-index:2;padding:16px 24px 0;">
+        <div style="font-size:11px;color:#FF6B00;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;">Your Performance Report</div>
+        <div id="bc-name" style="font-size:28px;font-weight:900;color:#fff;line-height:1.1;letter-spacing:-0.5px;">—</div>
+        <div id="bc-institute" style="font-size:11px;color:rgba(255,255,255,0.28);margin-top:3px;font-weight:500;"></div>
+      </div>
+
+      <!-- SCORE DIAL + STATS -->
+      <div style="position:relative;z-index:2;display:flex;align-items:center;padding:14px 24px 0;">
+        <div style="position:relative;width:130px;height:100px;flex-shrink:0;">
+          <svg width="130" height="100" viewBox="0 0 130 100">
+            <path d="M 15 85 A 52 52 0 0 1 115 85" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="9" stroke-linecap="round"/>
+            <path id="bc-dial-fill" d="M 15 85 A 52 52 0 0 1 115 85" fill="none" stroke="#FF6B00" stroke-width="9" stroke-linecap="round" stroke-dasharray="163" stroke-dashoffset="163"/>
+          </svg>
+          <div style="position:absolute;bottom:4px;left:50%;transform:translateX(-50%);text-align:center;">
+            <div id="bc-marks" style="font-size:26px;font-weight:900;color:#fff;line-height:1;letter-spacing:-1px;">—</div>
+            <div id="bc-maxmarks" style="font-size:10px;color:rgba(255,255,255,0.28);font-weight:600;">/ 240</div>
+          </div>
+        </div>
+        <div style="flex:1;padding-left:16px;display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:7px;height:7px;border-radius:50%;background:#00C896;flex-shrink:0;"></div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.4);flex:1;">Correct</div>
+            <div id="bc-correct" style="font-size:14px;font-weight:800;color:#fff;">—</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:7px;height:7px;border-radius:50%;background:#FF4444;flex-shrink:0;"></div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.4);flex:1;">Wrong</div>
+            <div id="bc-wrong" style="font-size:14px;font-weight:800;color:#fff;">—</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:7px;height:7px;border-radius:50%;background:#333;flex-shrink:0;"></div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.4);flex:1;">Skipped</div>
+            <div id="bc-skip" style="font-size:14px;font-weight:800;color:#fff;">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LEVEL BADGE -->
+      <div style="position:relative;z-index:2;padding:12px 24px 0;">
+        <div id="bc-level-badge" style="display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:50px;font-size:12px;font-weight:800;"></div>
+        <div id="bc-rationale" style="font-size:10px;color:rgba(255,255,255,0.28);margin-top:5px;font-weight:500;line-height:1.4;"></div>
+      </div>
+
+      <!-- DIVIDER -->
+      <div style="position:relative;z-index:2;margin:12px 24px;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.08),transparent);"></div>
+
+      <!-- PRIORITY CHAPTER -->
+      <div style="position:relative;z-index:2;padding:0 24px;">
+        <div style="font-size:10px;font-weight:700;color:#FF6B00;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:7px;display:flex;align-items:center;gap:6px;">
+          🎯 Fix This Week
+          <div style="flex:1;height:1px;background:rgba(255,107,0,0.2);"></div>
+        </div>
+        <div id="bc-chapter" style="font-size:20px;font-weight:900;color:#fff;line-height:1.2;letter-spacing:-0.3px;margin-bottom:5px;">—</div>
+        <span id="bc-subject-tag" style="display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:0.5px;"></span>
+      </div>
+
+      <!-- TONIGHT'S TASK -->
+      <div style="position:relative;z-index:2;padding:11px 24px 0;">
+        <div style="font-size:10px;font-weight:700;color:#00C896;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:7px;display:flex;align-items:center;gap:6px;">
+          🔥 Tonight's Homework
+          <div style="flex:1;height:1px;background:rgba(0,200,150,0.2);"></div>
+        </div>
+        <div id="bc-task" style="font-size:12px;color:rgba(255,255,255,0.8);line-height:1.6;border-left:2px solid rgba(0,200,150,0.4);padding-left:10px;"></div>
+        <div id="bc-duration" style="font-size:10px;color:rgba(255,255,255,0.28);font-weight:600;margin-top:5px;">⏱ — min</div>
+      </div>
+
+      <!-- QUOTE -->
+      <div style="position:relative;z-index:2;padding:10px 24px 0;">
+        <div id="bc-quote" style="font-size:13px;color:#FF9500;font-weight:700;line-height:1.5;font-style:italic;"></div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.2);margin-top:3px;font-weight:600;">— Rahul Sir</div>
+      </div>
+
+      <!-- SUBJECT BARS -->
+      <div style="position:relative;z-index:2;padding:10px 24px 0;">
+        <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.2);letter-spacing:1px;text-transform:uppercase;margin-bottom:7px;">Subject Accuracy</div>
+        <div style="display:flex;gap:6px;align-items:flex-end;height:44px;">
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end;">
+            <div id="bc-bar-phy" style="width:100%;border-radius:3px 3px 0 0;background:#3b82f6;min-height:4px;"></div>
+            <div style="font-size:8px;color:rgba(255,255,255,0.28);font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">PHY</div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end;">
+            <div id="bc-bar-chem" style="width:100%;border-radius:3px 3px 0 0;background:#a855f7;min-height:4px;"></div>
+            <div style="font-size:8px;color:rgba(255,255,255,0.28);font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">CHEM</div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end;">
+            <div id="bc-bar-bot" style="width:100%;border-radius:3px 3px 0 0;background:#10b981;min-height:4px;"></div>
+            <div style="font-size:8px;color:rgba(255,255,255,0.28);font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">BOT</div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end;">
+            <div id="bc-bar-zoo" style="width:100%;border-radius:3px 3px 0 0;background:#06b6d4;min-height:4px;"></div>
+            <div style="font-size:8px;color:rgba(255,255,255,0.28);font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">ZOO</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FOOTER -->
+      <div style="position:absolute;bottom:0;left:0;right:0;z-index:2;padding:12px 24px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(255,255,255,0.05);background:linear-gradient(0deg,#060A1A 60%,transparent);">
+        <div style="font-size:9px;color:rgba(255,255,255,0.15);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;">Powered by <span style="color:rgba(255,107,0,0.5);">BioRivet AI</span></div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.15);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;">Know More. Fear Less.</div>
+      </div>
+    </div><!-- /#br-card -->
+
+    <!-- Download button -->
+    <button id="card-download-btn" onclick="downloadBRCard()" style="padding:11px 28px;background:linear-gradient(135deg,#FF6B00,#FF9500);color:#fff;font-size:13px;font-weight:800;border:none;border-radius:12px;cursor:pointer;letter-spacing:0.3px;">
+      ↓ Download PNG — WhatsApp Ready
+    </button>
+    <div style="font-size:11px;color:rgba(255,255,255,0.25);text-align:center;">390×692px · 3× resolution · Share directly to parent WhatsApp</div>
+  </div>
+</div>
+
+<script>
+// ── NEET weights client-side copy (for priority chapter calc) ───────────────
+const NEET_CHAPTER_WEIGHT_CLIENT = {
+  'Electromagnetic Induction':1.8,'Modern Physics':1.8,'Current Electricity':1.7,
+  'Ray Optics':1.7,'Electrostatics':1.6,'Laws of Motion':1.6,'Rotational Motion':1.5,
+  'Alternating Current (AC) Circuits':1.5,'Work, Energy and Power':1.4,'Magnetism':1.4,
+  'Waves':1.3,'Thermodynamics':1.3,'Kinematics':1.3,'Wave Optics':1.2,'Nuclear Physics':1.2,
+  'Mechanics':1.2,'Fluid Mechanics':1.1,'Oscillations':1.1,'Electronics':0.9,
+  'Chemical Bonding':1.8,'Electrochemistry':1.7,'Coordination Compounds':1.7,
+  'Organic Chemistry':1.6,'Equilibrium':1.5,'Aldehyde Ketone':1.5,
+  'Alcohol Phenol Ether':1.4,'p-Block Elements':1.4,'d-Block Elements':1.3,
+  'Thermodynamics (Chem)':1.3,'Solutions':1.3,'Chemical Kinetics':1.3,
+  'Atomic Structure':1.2,'Mole Concept':1.1,
+  'Genetics and Evolution':1.9,'Human Physiology':1.8,'Plant Physiology':1.7,
+  'Cell: The Unit of Life':1.7,'Reproduction':1.6,'Ecology':1.5,'Biotechnology':1.5,
+  'Biological Classification':1.3,'Biomolecules':1.3,'Body Fluids and Circulation':1.4,
+  'Excretory Products':1.3,'Neural Control':1.3,'The Living World':1.0,
+};
+
+let _cardAI = null;
+
+// Draw twinkling stars on canvas
+function drawStars() {
+  const canvas = document.getElementById('br-stars-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, 390, 692);
+  for (let i = 0; i < 55; i++) {
+    const x = Math.random() * 390;
+    const y = Math.random() * 692;
+    const r = Math.random() * 1.2;
+    const a = Math.random() * 0.45;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,255,255,${a})`;
+    ctx.fill();
+  }
+}
+
+function subjectStyle(sub) {
+  const map = {
+    Physics:   { bg:'rgba(59,130,246,0.12)',  border:'rgba(59,130,246,0.3)',  color:'#60a5fa' },
+    Chemistry: { bg:'rgba(168,85,247,0.12)', border:'rgba(168,85,247,0.3)',  color:'#c084fc' },
+    Botany:    { bg:'rgba(16,185,129,0.12)', border:'rgba(16,185,129,0.3)',  color:'#34d399' },
+    Zoology:   { bg:'rgba(6,182,212,0.12)',  border:'rgba(6,182,212,0.3)',   color:'#22d3ee' },
+  };
+  return map[sub] || { bg:'rgba(255,255,255,0.06)', border:'rgba(255,255,255,0.15)', color:'rgba(255,255,255,0.5)' };
+}
+
+function levelStyle(l) {
+  const map = {
+    Foundation:  { bg:'rgba(254,243,199,0.1)', border:'rgba(251,191,36,0.35)',  color:'#fbbf24', icon:'🟡' },
+    Application: { bg:'rgba(219,234,254,0.1)', border:'rgba(59,130,246,0.35)',  color:'#60a5fa', icon:'🔵' },
+    Refinement:  { bg:'rgba(209,250,229,0.1)', border:'rgba(16,185,129,0.35)',  color:'#34d399', icon:'🟢' },
+  };
+  return map[l] || map.Application;
+}
+
+function fillCard(ai, instituteName, testName) {
+  const snap = ai._studentSnapshot || {};
+  const ap = ai.actionPlan || {};
+  const tonight = ap.tonightHomework || {};
+
+  // Determine priority chapter
+  const chapter = tonight.chapter || snap.w1 || '—';
+  const subject = tonight.subject || 'Physics';
+
+  // Text fields
+  document.getElementById('bc-name').textContent = snap.name || '—';
+  document.getElementById('bc-institute').textContent = instituteName || '';
+  document.getElementById('bc-test').textContent = testName || 'Mock Test';
+  document.getElementById('bc-marks').textContent = snap.neetMarks ?? '—';
+  document.getElementById('bc-maxmarks').textContent = '/ ' + (snap.maxMarks || 240);
+  document.getElementById('bc-correct').textContent = snap.totalCorrect ?? '—';
+  document.getElementById('bc-wrong').textContent = snap.totalWrong ?? '—';
+  document.getElementById('bc-skip').textContent = snap.totalUnattempted ?? '—';
+  document.getElementById('bc-chapter').textContent = chapter;
+  document.getElementById('bc-rationale').textContent = ai.levelRationale || '';
+  document.getElementById('bc-task').textContent = tonight.taskInHinglish || '—';
+  document.getElementById('bc-duration').textContent = '⏱ ' + (tonight.durationMinutes || '—') + ' min';
+  document.getElementById('bc-quote').textContent = '"' + (tonight.mentorNote || ai.academicSummary || '') + '"';
+
+  // Dial
+  const pct = Math.min(1, Math.max(0, (snap.neetMarks || 0) / (snap.maxMarks || 240)));
+  const offset = (163 - pct * 163).toFixed(1);
+  const dialColor = pct >= 0.6 ? '#00C896' : pct >= 0.35 ? '#FF6B00' : '#FF4444';
+  const dialEl = document.getElementById('bc-dial-fill');
+  if (dialEl) { dialEl.setAttribute('stroke-dashoffset', offset); dialEl.setAttribute('stroke', dialColor); }
+
+  // Level badge
+  const ls = levelStyle(ai.studentLevel);
+  const badge = document.getElementById('bc-level-badge');
+  if (badge) {
+    badge.textContent = ls.icon + ' ' + (ai.studentLevel || 'Application') + ' Level';
+    badge.style.cssText = `display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:50px;font-size:12px;font-weight:800;background:${ls.bg};border:1px solid ${ls.border};color:${ls.color};`;
+  }
+
+  // Subject tag
+  const ss = subjectStyle(subject);
+  const tagEl = document.getElementById('bc-subject-tag');
+  if (tagEl) {
+    tagEl.textContent = subject;
+    tagEl.style.cssText = `display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:0.5px;background:${ss.bg};border:1px solid ${ss.border};color:${ss.color};`;
+  }
+
+  // Subject bars — use subjectPct if available, else estimate from wrong counts
+  const subPct = snap.subjectPct || {};
+  const phyP = subPct.Physics   || subPct.physics   || 50;
+  const chP  = subPct.Chemistry || subPct.chemistry  || 50;
+  const botP = subPct.Botany    || subPct.botany     || 50;
+  const zooP = subPct.Zoology   || subPct.zoology    || 50;
+  const barH = (p) => Math.max(5, Math.round((p / 100) * 34)) + 'px';
+  document.getElementById('bc-bar-phy').style.height  = barH(phyP);
+  document.getElementById('bc-bar-chem').style.height = barH(chP);
+  document.getElementById('bc-bar-bot').style.height  = barH(botP);
+  document.getElementById('bc-bar-zoo').style.height  = barH(zooP);
+
+  drawStars();
+}
+
+// ── CARD REPORT REGISTRY — avoids serializing AI JSON into HTML attributes ──
+window._brCardRegistry = {};
+
+function registerCardReport(studentName, aiReport) {
+  const key = studentName.replace(/\s+/g, '_');
+  window._brCardRegistry[key] = aiReport;
+  return key;
+}
+
+function openCardModal(btn) {
+  const key = btn.getAttribute('data-ai-id');
+  const ai = window._brCardRegistry[key];
+  if (!ai) {
+    alert('Report data not found. Please regenerate the AI prescription.');
+    return;
+  }
+  _cardAI = ai;
+
+  const modal = document.getElementById('card-modal');
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+
+  // Pre-fill institute from any visible institute input in the tool
+  const instInput = document.getElementById('card-institute-input');
+  if (instInput && !instInput.value) {
+    instInput.value = document.getElementById('institute-name-input')?.value || '';
+  }
+
+  fillCard(ai, document.getElementById('card-institute-input').value, document.getElementById('card-test-input').value);
+}
+
+function refreshCard() {
+  if (!_cardAI) return;
+  fillCard(_cardAI, document.getElementById('card-institute-input').value, document.getElementById('card-test-input').value);
+}
+
+function closeCardModal() {
+  document.getElementById('card-modal').style.display = 'none';
+  document.body.style.overflow = '';
+  _cardAI = null;
+}
+
+async function downloadBRCard() {
+  if (!window.html2canvas) { alert('html2canvas not loaded yet. Please wait a moment and try again.'); return; }
+  const btn = document.getElementById('card-download-btn');
+  btn.textContent = '⏳ Rendering...';
+  btn.disabled = true;
+  try {
+    const card = document.getElementById('br-card');
+    const canvas = await html2canvas(card, { scale: 3, useCORS: true, backgroundColor: '#060A1A', logging: false });
+    const name = (_cardAI?._studentSnapshot?.name || 'Student').replace(/\s+/g,'_');
+    const a = document.createElement('a');
+    a.download = `BioRivet_${name}_Card.png`;
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+    btn.textContent = '✓ Downloaded!';
+    setTimeout(() => { btn.textContent = '↓ Download PNG — WhatsApp Ready'; btn.disabled = false; }, 2000);
+  } catch(e) {
+    console.error(e);
+    btn.textContent = 'Error — try again';
+    btn.disabled = false;
+  }
+}
+
+// Close modal on backdrop click
+document.getElementById('card-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeCardModal();
+});
+</script>
+</body>
+</html>

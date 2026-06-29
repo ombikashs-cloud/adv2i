@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Paper Difficulty Analyser - BioRivet</title>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1F3864; /* Navy */
+            --accent: #4A148C; /* Purple */
+            --accent-light: #F3E5F5;
+            --easy: #10b981;
+            --medium: #f59e0b;
+            --hard: #ef4444;
+            --bg-body: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .brand-link { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 0.9rem; font-weight: 500;}
+        .brand-link:hover { color: white; text-decoration: underline; }
+
+        main {
+            flex: 1;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        h2 { margin-top: 0; color: var(--primary); }
+
+        .upload-section {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            margin-bottom: 2rem;
+        }
+
+        .upload-zone {
+            border: 2px dashed var(--accent);
+            background: var(--accent-light);
+            padding: 3rem 2rem;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .upload-zone:hover { background: #e1bee7; }
+        .upload-icon { font-size: 3rem; margin-bottom: 1rem; color: var(--accent); }
+        .file-input { display: none; }
+
+        .info-box {
+            margin-top: 1.5rem;
+            background: rgba(31, 56, 100, 0.05);
+            border-left: 4px solid var(--primary);
+            padding: 1rem;
+            border-radius: 0 4px 4px 0;
+            font-size: 0.9rem;
+        }
+
+        /* Dashboard Styles */
+        #dashboard { display: none; }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+            background: var(--accent);
+        }
+        
+        .metric-val { font-size: 2.2rem; font-weight: 700; line-height: 1; margin-bottom: 0.5rem; color: var(--text-main); }
+        .metric-label { color: var(--text-muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; }
+
+        .dashboard-main {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 900px) {
+            .dashboard-main { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            background: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            padding: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .panel h3 { margin-top: 0; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; }
+
+        /* Donut Chart */
+        .chart-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem 0;
+        }
+
+        .donut {
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            background: conic-gradient(
+                var(--easy) 0% 0%, 
+                var(--medium) 0% 0%, 
+                var(--hard) 0% 100%
+            );
+            position: relative;
+            margin-bottom: 1.5rem;
+            transition: background 1s ease-out;
+        }
+
+        .donut::after {
+            content: "Difficulty";
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 110px; height: 110px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .legend { width: 100%; }
+        .legend-item { display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.95rem; }
+        .legend-color { width: 12px; height: 12px; border-radius: 3px; display: inline-block; margin-right: 8px; }
+
+        /* Recommendations */
+        .rec-item {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .rec-danger { background: #fee2e2; border-left: 4px solid var(--danger); color: #991b1b; }
+        .rec-warning { background: #fef3c7; border-left: 4px solid var(--warning); color: #b45309; }
+        .rec-success { background: #dcfce7; border-left: 4px solid var(--success); color: #166534; }
+
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; }
+        th { background: #f1f5f9; padding: 1rem; font-weight: 600; color: var(--text-main); }
+        td { padding: 1rem; border-bottom: 1px solid var(--border); }
+        tr:hover { background: #f8fafc; }
+
+        .btn {
+            display: inline-block; padding: 0.75rem 1.5rem; border-radius: 6px; font-weight: 600; font-size: 1rem;
+            cursor: pointer; border: none; transition: background 0.2s; color: white;
+        }
+        .btn-primary { background: var(--primary); }
+        .btn-primary:hover { background: #162a4a; }
+        .btn-accent { background: var(--accent); }
+        .btn-accent:hover { background: #330d66; }
+
+        footer {
+            background-color: var(--primary);
+            color: rgba(255, 255, 255, 0.8);
+            text-align: center;
+            padding: 1.5rem;
+            margin-top: auto;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1 style="margin: 0; font-size: 1.5rem;">Test Paper Difficulty Analyser</h1>
+        <a href="indexx.html" class="brand-link">&larr; Back to BioRivet Hub</a>
+    </header>
+
+    <main>
+        <!-- Upload Section -->
+        <div class="upload-section" id="upload-section">
+            <h2>Audit Your Question Paper</h2>
+            <div class="upload-zone" onclick="document.getElementById('file-input').click()" id="drop-zone">
+                <div class="upload-icon">🎯</div>
+                <div style="font-size: 1.2rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--primary);">Upload Question Paper</div>
+                <div style="color: var(--text-muted); font-size: 0.95rem;">Drag & drop Excel or CSV file here, or click to browse.</div>
+                <input type="file" id="file-input" class="file-input" accept=".xlsx, .xls, .csv">
+            </div>
+
+            <div class="info-box">
+                <strong>Expected Columns:</strong> 
+                <code>Q No</code> | <code>Question</code> | <code>Chapter</code> | <code>Difficulty (Easy/Medium/Hard)</code> | <code>Marks</code>
+                <br><br>
+                <button class="btn" style="background: transparent; border: 1px solid var(--primary); color: var(--primary); padding: 0.5rem 1rem; font-size: 0.85rem;" onclick="downloadTemplate()">⬇ Download Sample Template</button>
+            </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboard">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h2>Quality Audit Report</h2>
+                <button class="btn btn-primary" onclick="resetApp()">Upload New Paper</button>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-val" id="metric-total">0</div>
+                    <div class="metric-label">Total Questions</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-val" id="metric-balance">0/100</div>
+                    <div class="metric-label">Paper Balance Score</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-val" id="metric-avg-score">0</div>
+                    <div class="metric-label">Estimated Avg Score</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-val" id="metric-most-tested" style="font-size: 1.5rem; word-break: break-word;">-</div>
+                    <div class="metric-label">Most Tested Chapter</div>
+                </div>
+            </div>
+
+            <div class="dashboard-main">
+                <!-- Left: Difficulty Chart -->
+                <div class="panel">
+                    <h3>Difficulty Distribution</h3>
+                    <div class="chart-container">
+                        <div class="donut" id="donut-chart"></div>
+                        <div class="legend">
+                            <div class="legend-item">
+                                <div><span class="legend-color" style="background: var(--easy);"></span>Easy</div>
+                                <div><strong id="legend-easy">0%</strong> <span style="color:var(--text-muted);font-size:0.8em">(Ideal: 30%)</span></div>
+                            </div>
+                            <div class="legend-item">
+                                <div><span class="legend-color" style="background: var(--medium);"></span>Medium</div>
+                                <div><strong id="legend-medium">0%</strong> <span style="color:var(--text-muted);font-size:0.8em">(Ideal: 45%)</span></div>
+                            </div>
+                            <div class="legend-item">
+                                <div><span class="legend-color" style="background: var(--hard);"></span>Hard</div>
+                                <div><strong id="legend-hard">0%</strong> <span style="color:var(--text-muted);font-size:0.8em">(Ideal: 25%)</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Recommendations -->
+                <div class="panel">
+                    <h3>Audit Recommendations</h3>
+                    <div id="recommendations-container">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3>Chapter-wise Analysis</h3>
+                    <button class="btn btn-accent" style="padding: 0.5rem 1rem; font-size: 0.85rem;" onclick="exportReport()">📥 Export Analysis</button>
+                </div>
+                <div style="overflow-x: auto; margin-top: 1rem;">
+                    <table id="chapter-table">
+                        <thead>
+                            <tr>
+                                <th>Chapter</th>
+                                <th>Total Qs</th>
+                                <th>Easy</th>
+                                <th>Medium</th>
+                                <th>Hard</th>
+                                <th>Total Marks</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        &copy; 2026 BioRivet. Know More. Fear Less.
+    </footer>
+
+    <script>
+        let globalData = [];
+        let chapterAnalysis = [];
+
+        function setupDropZone() {
+            const dropZone = document.getElementById('drop-zone');
+            const fileInput = document.getElementById('file-input');
+
+            dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.background = '#e1bee7'; });
+            dropZone.addEventListener('dragleave', () => dropZone.style.background = 'var(--accent-light)');
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.style.background = 'var(--accent-light)';
+                if (e.dataTransfer.files.length) processFile(e.dataTransfer.files[0]);
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length) processFile(e.target.files[0]);
+            });
+        }
+
+        // Initialize drop zone on load
+        setupDropZone();
+
+        function restoreUploadUI() {
+            document.getElementById('upload-section').innerHTML = `
+            <h2>Audit Your Question Paper</h2>
+            <div class="upload-zone" onclick="document.getElementById('file-input').click()" id="drop-zone">
+                <div class="upload-icon">✨🎯</div>
+                <div style="font-size: 1.2rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--primary);">Upload Paper for AI Analysis</div>
+                <div style="color: var(--text-muted); font-size: 0.95rem;">Drag & drop PDF, Excel, CSV, or Images here.</div>
+                <input type="file" id="file-input" class="file-input" accept=".xlsx, .xls, .csv, .pdf, .jpg, .jpeg, .png, .doc, .docx">
+            </div>
+            <div class="info-box">
+                <strong>Supported Formats:</strong> PDF, Images (JPG/PNG), Excel, CSV.<br><br>
+                <span style="color:var(--accent); font-weight:600;">✨ AI Powered OCR & Analysis:</span> The tool will actively read your questions (even from scanned PDFs), understand their conceptual depth, and automatically determine the exact Chapter and Difficulty Level (Easy/Medium/Hard).
+            </div>`;
+            setupDropZone();
+        }
+
+        // Update the initial upload section UI to match the new AI powered one
+        restoreUploadUI();
+
+        let progressInterval;
+
+        function updateProgressUI(percent, text) {
+            const bar = document.getElementById('ai-progress-bar');
+            const txt = document.getElementById('ai-progress-text');
+            const status = document.getElementById('ai-status-text');
+            if (bar) bar.style.width = percent + '%';
+            if (txt) txt.innerText = Math.round(percent) + '%';
+            if (status && text) status.innerText = text;
+        }
+
+        function startSimulatedProgress() {
+            let progress = 0;
+            if (progressInterval) clearInterval(progressInterval);
+            
+            progressInterval = setInterval(() => {
+                if (progress < 95) {
+                    const remaining = 95 - progress;
+                    progress += Math.max(0.2, remaining * 0.05);
+                    if (progress > 95) progress = 95;
+                    updateProgressUI(progress);
+                }
+            }, 600);
+        }
+
+        async function processAIBatch(payload) {
+            const response = await fetch('/api/analyze-document', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            
+            if (data.error) throw new Error(data.error);
+            if (!data.results || data.results.length === 0) throw new Error("No questions extracted");
+            
+            return data.results.map(r => ({
+                'Q No': r.qno,
+                'Chapter': r.chapter,
+                'Difficulty': r.difficulty,
+                'Marks': r.marks || 4,
+                'Reason': r.reason
+            }));
+        }
+
+        async function processFile(file) {
+            const ext = file.name.split('.').pop().toLowerCase();
+            
+            // Show loading UI
+            document.getElementById('upload-section').innerHTML = `
+            <div style="text-align:center; padding: 4rem 2rem; background: var(--card-bg); border-radius: 12px; border: 2px solid var(--accent);">
+                <div style="font-size: 3rem; margin-bottom: 1rem; animation: pulse 1.5s infinite;">🧠</div>
+                <h2 style="color: var(--accent); margin-bottom: 0.5rem;">AI is auditing your paper...</h2>
+                <p id="ai-status-text" style="color: var(--text-muted); font-weight: 500;">Extracting questions and preparing AI analysis...</p>
+                
+                <div style="width: 80%; max-width: 400px; margin: 1.5rem auto 0.5rem auto; background: #e2e8f0; border-radius: 20px; overflow: hidden; height: 10px;">
+                    <div id="ai-progress-bar" style="width: 0%; height: 100%; background: var(--accent); transition: width 0.4s ease;"></div>
+                </div>
+                <p id="ai-progress-text" style="font-size:0.9rem; font-weight: 600; color: var(--accent); margin-top: 0;">0%</p>
+                
+                <p style="font-size:0.85rem; margin-top:1rem; font-style:italic; color: var(--text-muted);">This may take a minute for large papers.</p>
+            </div>
+            `;
+
+            if (['xlsx', 'xls', 'csv'].includes(ext)) {
+                // Batch processing for Excel files (TRUE PROGRESS BAR)
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, {type: 'array'});
+                        const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                        
+                        let allQuestions = json.map((r, idx) => {
+                            const keys = Object.keys(r);
+                            const qKey = keys.find(k => String(k).toLowerCase().includes('question') || String(k).toLowerCase().includes('text'));
+                            const qNoKey = keys.find(k => String(k).toLowerCase().includes('q no') || String(k).toLowerCase().includes('no'));
+                            if (!r[qKey]) return null;
+                            return `[QNo: ${r[qNoKey] || (idx+1)}] ${r[qKey]}`;
+                        }).filter(q => q !== null);
+
+                        if (allQuestions.length === 0) throw new Error("Could not extract question text. Ensure there is a 'Question' column.");
+
+                        const BATCH_SIZE = 40;
+                        let allResults = [];
+                        let totalBatches = Math.ceil(allQuestions.length / BATCH_SIZE);
+                        
+                        updateProgressUI(0, `Found ${allQuestions.length} questions. Processing batch 1 of ${totalBatches}...`);
+
+                        for (let i = 0; i < totalBatches; i++) {
+                            const batchText = allQuestions.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE).join('\n');
+                            
+                            try {
+                                const results = await processAIBatch({ textContent: batchText });
+                                allResults = allResults.concat(results);
+                                
+                                const currentPct = Math.round(((i + 1) / totalBatches) * 100);
+                                if (i + 1 < totalBatches) {
+                                    updateProgressUI(currentPct, `Batch ${i+1} complete. Processing batch ${i+2} of ${totalBatches}...`);
+                                } else {
+                                    updateProgressUI(100, `All batches complete! Finalizing report...`);
+                                }
+                            } catch (batchErr) {
+                                throw new Error(`Failed to process batch ${i+1}: ` + batchErr.message);
+                            }
+                        }
+                        
+                        setTimeout(() => {
+                            restoreUploadUI();
+                            analyzeData(allResults);
+                        }, 500);
+
+                    } catch (err) {
+                        alert("Error: " + err.message);
+                        resetApp();
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            } else {
+                // PDF or Image -> Single request with simulated progress
+                startSimulatedProgress();
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const base64Data = e.target.result.split(',')[1];
+                    const mimeType = file.type || 'application/pdf';
+                    
+                    updateProgressUI(0, "Running OCR and deeply analyzing PDF/Image document...");
+                    
+                    try {
+                        const results = await processAIBatch({ fileData: base64Data, mimeType });
+                        if (progressInterval) clearInterval(progressInterval);
+                        updateProgressUI(100, "Done! Finalizing report...");
+                        
+                        setTimeout(() => {
+                            restoreUploadUI();
+                            analyzeData(results);
+                        }, 500);
+                    } catch(err) {
+                        if (progressInterval) clearInterval(progressInterval);
+                        alert('Error during AI analysis: ' + err.message);
+                        resetApp();
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        async function sendToAI(payload) {
+            try {
+                const response = await fetch('/api/analyze-document', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+                
+                if (progressInterval) clearInterval(progressInterval);
+                
+                if (data.error) {
+                    alert('AI Error: ' + data.error);
+                    resetApp();
+                    return;
+                }
+
+                if (data.results && data.results.length > 0) {
+                    // Complete the progress bar visually before transitioning
+                    const bar = document.getElementById('ai-progress-bar');
+                    const txt = document.getElementById('ai-progress-text');
+                    if (bar) bar.style.width = '100%';
+                    if (txt) txt.innerText = '100%';
+                    
+                    // Reformat to match the expected format for analyzeData
+                    const mappedData = data.results.map(r => ({
+                        'Q No': r.qno,
+                        'Chapter': r.chapter,
+                        'Difficulty': r.difficulty,
+                        'Marks': r.marks || 4
+                    }));
+                    
+                    // Small delay so user sees 100% completion
+                    setTimeout(() => {
+                        restoreUploadUI();
+                        analyzeData(mappedData);
+                    }, 500);
+                } else {
+                    alert('No questions were found or extracted by the AI.');
+                    resetApp();
+                }
+            } catch (err) {
+                if (progressInterval) clearInterval(progressInterval);
+                alert('Network error during AI analysis.');
+                resetApp();
+            }
+        }
+
+        function analyzeData(data) {
+            let totalQ = 0;
+            let easyCount = 0, mediumCount = 0, hardCount = 0;
+            let totalMarks = 0;
+            let easyMarks = 0, mediumMarks = 0, hardMarks = 0;
+
+            const chapters = {};
+            const questionsDetailed = [];
+
+            data.forEach(row => {
+                const keys = Object.keys(row);
+                const getStr = (keywords, def) => {
+                    const key = keys.find(k => keywords.some(kw => String(k).toLowerCase().includes(kw)));
+                    return key ? String(row[key]).trim() : def;
+                };
+                const getVal = (keywords, def) => {
+                    const key = keys.find(k => keywords.some(kw => String(k).toLowerCase().includes(kw)));
+                    return key ? parseFloat(row[key]) || def : def;
+                };
+
+                const diff = getStr(['diff', 'level'], 'Medium').toLowerCase();
+                const marks = getVal(['mark', 'score', 'weight'], 4); // Default NEET marks = 4
+                const chapter = getStr(['chapter', 'topic'], 'Uncategorized');
+                const qno = getStr(['q no', 'qno', 'no'], totalQ + 1);
+                const reason = getStr(['reason', 'explanation'], 'No reason provided');
+                
+                totalQ++;
+                totalMarks += marks;
+
+                questionsDetailed.push({ qno, chapter, diff, marks, reason });
+
+                if (!chapters[chapter]) chapters[chapter] = { total: 0, easy: 0, medium: 0, hard: 0, marks: 0 };
+                chapters[chapter].total++;
+                chapters[chapter].marks += marks;
+
+                if (diff.includes('easy')) { easyCount++; easyMarks += marks; chapters[chapter].easy++; }
+                else if (diff.includes('hard')) { hardCount++; hardMarks += marks; chapters[chapter].hard++; }
+                else { mediumCount++; mediumMarks += marks; chapters[chapter].medium++; } // Default to medium
+            });
+
+            if (totalQ === 0) return alert("No valid questions found.");
+
+            // Calculate percentages
+            const easyPct = (easyCount / totalQ) * 100;
+            const medPct = (mediumCount / totalQ) * 100;
+            const hardPct = (hardCount / totalQ) * 100;
+
+            // Balance Score (Ideal: E=30, M=45, H=25)
+            const deviation = Math.abs(easyPct - 30) + Math.abs(medPct - 45) + Math.abs(hardPct - 25);
+            // Max theoretical deviation is 140 (e.g. 100% easy: |100-30| + |0-45| + |0-25| = 70+45+25 = 140).
+            let balanceScore = 100 - (deviation / 1.4);
+            balanceScore = Math.max(0, Math.round(balanceScore));
+
+            // Estimated Avg Score (Easy 100%, Medium 60%, Hard 20%. Wrong = 40% of remaining)
+            const totalCorrectQs = easyCount + (mediumCount * 0.6) + (hardCount * 0.2);
+            const remainingQs = totalQ - totalCorrectQs;
+            const wrongQs = remainingQs * 0.4;
+            
+            // Assume 4 marks for correct, -1 for wrong (scaled if custom marks are used)
+            const avgMarksPerQ = totalMarks / totalQ;
+            const estScore = (totalCorrectQs * avgMarksPerQ) - (wrongQs * (avgMarksPerQ / 4));
+
+            // Chapter Analysis Array
+            chapterAnalysis = [];
+            for (const [name, stats] of Object.entries(chapters)) {
+                stats.hardPct = stats.total > 0 ? (stats.hard / stats.total) * 100 : 0;
+                chapterAnalysis.push({ chapter: name, ...stats });
+            }
+            chapterAnalysis.sort((a,b) => b.total - a.total);
+
+            // Most tested chapters
+            const topChapters = chapterAnalysis.slice(0, 3);
+            const maxChap = topChapters.length > 0 ? topChapters[0].chapter : '-';
+
+            // Top hardest chapters (by % of hard questions, minimum 2 questions to count to avoid skew)
+            const hardestChapters = [...chapterAnalysis].filter(c => c.total >= 2 && c.hardPct > 0).sort((a,b) => b.hardPct - a.hardPct).slice(0, 3);
+
+            // Update UI
+            document.getElementById('metric-total').innerText = totalQ;
+            document.getElementById('metric-balance').innerText = balanceScore;
+            
+            // Color balance score
+            const balEl = document.getElementById('metric-balance');
+            if (balanceScore >= 80) balEl.style.color = 'var(--easy)';
+            else if (balanceScore >= 60) balEl.style.color = 'var(--medium)';
+            else balEl.style.color = 'var(--hard)';
+
+            document.getElementById('metric-avg-score').innerText = Math.round(estScore) + ` / ${totalMarks}`;
+            document.getElementById('metric-most-tested').innerText = maxChap;
+
+            // Update Donut
+            const easyEnd = easyPct;
+            const medEnd = easyPct + medPct;
+            document.getElementById('donut-chart').style.background = `conic-gradient(
+                var(--easy) 0% ${easyEnd}%, 
+                var(--medium) ${easyEnd}% ${medEnd}%, 
+                var(--hard) ${medEnd}% 100%
+            )`;
+
+            document.getElementById('legend-easy').innerText = easyPct.toFixed(1) + '%';
+            document.getElementById('legend-medium').innerText = medPct.toFixed(1) + '%';
+            document.getElementById('legend-hard').innerText = hardPct.toFixed(1) + '%';
+
+            // Generate Recommendations & Warnings
+            let recsHtml = '';
+            if (balanceScore >= 85) {
+                recsHtml += `<div class="rec-item rec-success"><strong>✅ Excellent Balance:</strong> This paper aligns very closely with the NEET standard difficulty distributions (30/45/25).</div>`;
+            }
+
+            if (Math.abs(easyPct - 30) > 10) {
+                if (easyPct > 30) recsHtml += `<div class="rec-item rec-danger"><strong>⚠️ Too many Easy questions:</strong> Easy questions are at ${easyPct.toFixed(0)}% (ideal is 30%). This paper lacks differentiation for top students.</div>`;
+                else recsHtml += `<div class="rec-item rec-warning"><strong>⚠️ Lack of Easy questions:</strong> Only ${easyPct.toFixed(0)}% easy questions (ideal is 30%). This might demoralise average students.</div>`;
+            }
+
+            if (Math.abs(medPct - 45) > 10) {
+                recsHtml += `<div class="rec-item rec-warning"><strong>⚠️ Medium questions deviation:</strong> Currently ${medPct.toFixed(0)}% (ideal is 45%). Core application concepts are not balanced.</div>`;
+            }
+
+            if (Math.abs(hardPct - 25) > 10) {
+                if (hardPct > 25) recsHtml += `<div class="rec-item rec-danger"><strong>⚠️ Paper is too difficult:</strong> Hard questions are at ${hardPct.toFixed(0)}% (ideal is 25%). This will lead to very low average scores.</div>`;
+                else recsHtml += `<div class="rec-item rec-warning"><strong>⚠️ Not challenging enough:</strong> Hard questions are only ${hardPct.toFixed(0)}% (ideal is 25%).</div>`;
+            }
+
+            if (hardestChapters.length > 0) {
+                recsHtml += `<div class="rec-item rec-danger"><strong>🔥 Hardest Chapters:</strong> ${hardestChapters.map(c => `${c.chapter} (${c.hardPct.toFixed(0)}% hard)`).join(', ')}</div>`;
+            }
+
+            if (recsHtml === '') {
+                recsHtml = `<div class="rec-item rec-success"><strong>✅ Good to go:</strong> Paper looks perfectly balanced. No critical issues detected.</div>`;
+            }
+
+            document.getElementById('recommendations-container').innerHTML = recsHtml;
+
+            // Render Table (Summary)
+            const tbody = document.querySelector('#chapter-table tbody');
+            tbody.innerHTML = chapterAnalysis.map(c => `
+                <tr>
+                    <td><strong>${c.chapter}</strong></td>
+                    <td>${c.total}</td>
+                    <td style="color:var(--easy)">${c.easy}</td>
+                    <td style="color:var(--medium)">${c.medium}</td>
+                    <td style="color:var(--hard)">${c.hard}</td>
+                    <td>${c.marks}</td>
+                </tr>
+            `).join('');
+
+            // Render Detailed AI Output Table
+            let detailedHtml = `<div class="panel" style="margin-top: 2rem;">
+                <h3>AI Detailed Question Classification</h3>
+                <div style="overflow-x: auto; margin-top: 1rem;">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+                        <thead>
+                            <tr>
+                                <th style="background: #f1f5f9; padding: 0.75rem; border-bottom: 2px solid var(--border);">Q No</th>
+                                <th style="background: #f1f5f9; padding: 0.75rem; border-bottom: 2px solid var(--border);">Chapter</th>
+                                <th style="background: #f1f5f9; padding: 0.75rem; border-bottom: 2px solid var(--border);">Difficulty</th>
+                                <th style="background: #f1f5f9; padding: 0.75rem; border-bottom: 2px solid var(--border);">AI Reasoning</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+            
+            questionsDetailed.forEach(q => {
+                let color = 'var(--medium)';
+                if (q.diff.includes('easy')) color = 'var(--easy)';
+                if (q.diff.includes('hard')) color = 'var(--hard)';
+                
+                detailedHtml += `
+                    <tr>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);"><strong>${q.qno}</strong></td>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);">${q.chapter}</td>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid var(--border); color: ${color}; font-weight: 600; text-transform: capitalize;">${q.diff}</td>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid var(--border); color: var(--text-muted);">${q.reason}</td>
+                    </tr>
+                `;
+            });
+
+            detailedHtml += `</tbody></table></div></div>`;
+            
+            // Append the detailed table below the existing dashboard
+            let existingDetailed = document.getElementById('detailed-ai-table');
+            if (existingDetailed) existingDetailed.remove();
+            
+            const detailedContainer = document.createElement('div');
+            detailedContainer.id = 'detailed-ai-table';
+            detailedContainer.innerHTML = detailedHtml;
+            document.getElementById('dashboard').appendChild(detailedContainer);
+
+            document.getElementById('upload-section').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+        }
+
+        function exportReport() {
+            const ws = XLSX.utils.json_to_sheet(chapterAnalysis.map(c => ({
+                'Chapter': c.chapter,
+                'Total Questions': c.total,
+                'Easy': c.easy,
+                'Medium': c.medium,
+                'Hard': c.hard,
+                'Total Marks': c.marks
+            })));
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Chapter Analysis");
+            XLSX.writeFile(wb, "BioRivet_Difficulty_Analysis.xlsx");
+        }
+
+        function resetApp() {
+            document.getElementById('dashboard').style.display = 'none';
+            document.getElementById('upload-section').style.display = 'block';
+            restoreUploadUI();
+            chapterAnalysis = [];
+        }
+
+    </script>
+</body>
+</html>
